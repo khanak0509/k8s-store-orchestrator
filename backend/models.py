@@ -22,5 +22,6 @@ class Store(Base):
     engine = Column(Enum(StoreEngine), nullable=False)
     status = Column(Enum(StoreStatus), default=StoreStatus.PROVISIONING)
     url = Column(String, nullable=True)
+    password = Column(String, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
     error_message = Column(String, nullable=True)
