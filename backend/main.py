@@ -27,7 +27,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-def provision_store_task(store_id: int, name: str, engine_type: str, namespace: str):
+import secrets
+import string
+
+def generate_password(length=8):
+    alphabet = string.ascii_letters + string.digits
+    return ''.join(secrets.choice(alphabet) for _ in range(length))
+
+def provision_store_task(store_id: int, name: str, engine_type: str, namespace: str, password: str):
     with SessionLocal() as db:
         store = db.query(Store).filter(Store.id == store_id).first()
         if not store:
@@ -39,12 +46,20 @@ def provision_store_task(store_id: int, name: str, engine_type: str, namespace: 
             if not k8s_service.k8s_create_namespace(namespace):
                 raise Exception("Failed to create Kubernetes namespace")
 
-            success, info = k8s_service.k8s_deploy_store(name, engine_type, namespace)
+            k8s_service.k8s_apply_resource_quota(namespace)
+            k8s_service.k8s_apply_network_policy(namespace)
+
+            success, info = k8s_service.k8s_deploy_store(name, engine_type, namespace, password)
             
             if success:
-                store.status = StoreStatus.READY
-                store.url = info
-                logger.info(f"[{name}] Provisioning Complete: {info}")
+                logger.info(f"[{name}] Deployment initiated. Waiting for pods to be Ready...")
+                if k8s_service.k8s_wait_for_ready(namespace):
+                    store.status = StoreStatus.READY
+                    store.url = info
+                    logger.info(f"[{name}] Provisioning Complete: {info}")
+                else:
+                    store.status = StoreStatus.FAILED
+                    store.error_message = "Timed out waiting for pods to be ready"
             else:
                 store.status = StoreStatus.FAILED
                 store.error_message = info
@@ -85,12 +100,14 @@ def create_store(
         raise HTTPException(status_code=400, detail="Store name already exists")
 
     generated_namespace = f"store-{store_req.name}"
+    generated_password = generate_password()
 
     new_store = Store(
         name=store_req.name,
         namespace=generated_namespace,
         engine=store_req.engine,
-        status=StoreStatus.PROVISIONING
+        status=StoreStatus.PROVISIONING,
+        password=generated_password
     )
     db.add(new_store)
     db.commit()
@@ -101,7 +118,8 @@ def create_store(
         new_store.id, 
         new_store.name, 
         new_store.engine.value,
-        new_store.namespace
+        new_store.namespace,
+        generated_password
     )
 
     return new_store
