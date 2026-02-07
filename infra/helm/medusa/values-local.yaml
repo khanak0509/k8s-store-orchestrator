@@ -1,0 +1,6 @@
+# Local Values for Medusa (Stubbed as Nginx for now)
+service:
+  type: ClusterIP
+ingress:
+  enabled: true
+  ingressClassName: traefik

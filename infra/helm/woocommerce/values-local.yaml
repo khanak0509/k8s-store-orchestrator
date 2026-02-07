@@ -1,0 +1,15 @@
+# Local Values for WooCommerce (Kind/k3d/Minikube)
+wordpressUsername: admin
+service:
+  type: ClusterIP
+ingress:
+  enabled: true
+  ingressClassName: traefik
+persistence:
+  enabled: true
+  size: 1Gi
+mariadb:
+  primary:
+    persistence:
+      enabled: true
+      size: 1Gi

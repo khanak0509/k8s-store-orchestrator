@@ -1,0 +1,25 @@
+# Production-ready Values for WooCommerce (VPS/k3s)
+wordpressUsername: admin
+service:
+  type: ClusterIP
+ingress:
+  enabled: true
+  ingressClassName: traefik # or nginx depending on VPS setup
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    kubernetes.io/tls-acme: "true"
+persistence:
+  enabled: true
+  size: 10Gi
+mariadb:
+  primary:
+    persistence:
+      enabled: true
+      size: 10Gi
+resources:
+  requests:
+    cpu: 300m
+    memory: 512Mi
+  limits:
+    cpu: 600m
+    memory: 1Gi
