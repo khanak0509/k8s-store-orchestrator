@@ -1,62 +1,82 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, RefreshCcw, Search, Filter } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Plus, RefreshCcw, Search } from 'lucide-react';
 import StoreCard from './StoreCard';
 import CreateStoreModal from './CreateStoreModal';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const StoreDashboard = () => {
-  const [stores, setStores] = useState([
-    {
-      id: '1',
-      name: 'Alpha Sneakers',
-      type: 'WooCommerce',
-      status: 'Ready',
-      url: 'https://alpha-sneakers.urumi.app',
-      adminUrl: 'https://alpha-sneakers.urumi.app/wp-admin',
-      createdAt: '2026-02-05T10:00:00Z'
-    },
-    {
-      id: '2',
-      name: 'Zen Tech Store',
-      type: 'MedusaJS',
-      status: 'Provisioning',
-      url: 'https://zen-tech.urumi.app',
-      adminUrl: 'https://zen-tech.urumi.app/admin',
-      createdAt: '2026-02-06T02:30:00Z'
-    },
-    {
-      id: '3',
-      name: 'Retro Vinyls',
-      type: 'WooCommerce',
-      status: 'Failed',
-      url: 'https://retro-vinyls.urumi.app',
-      adminUrl: '',
-      createdAt: '2026-02-05T18:45:00Z'
-    }
-  ]);
+const API_BASE_URL = 'http://localhost:8000';
 
+const StoreDashboard = () => {
+  const [stores, setStores] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const handleDelete = (id) => {
-    setStores(stores.filter(s => s.id !== id));
+  const fetchStores = useCallback(async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/stores`);
+      if (response.ok) {
+        const data = await response.json();
+        const sortedData = data.sort((a, b) => b.id - a.id);
+        setStores(sortedData);
+      }
+    } catch (error) {
+      console.error('Failed to fetch stores:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchStores();
+  }, [fetchStores]);
+
+  useEffect(() => {
+    const hasTransitionalStore = stores.some(s => 
+      s.status === 'Provisioning' || s.status === 'Deleting'
+    );
+
+    if (hasTransitionalStore) {
+      const interval = setInterval(fetchStores, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [stores, fetchStores]);
+
+  const handleDelete = async (id) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/stores/${id}`, {
+        method: 'DELETE',
+      });
+      if (response.ok) {
+        setStores(prev => prev.map(s => s.id === id ? { ...s, status: 'Deleting' } : s));
+      }
+    } catch (error) {
+      console.error('Failed to delete store:', error);
+    }
   };
 
-  const handleCreate = (newStore) => {
-    const store = {
-      ...newStore,
-      id: Math.random().toString(36).substr(2, 9),
-      status: 'Provisioning',
-      createdAt: new Date().toISOString(),
-      url: `https://${newStore.name.toLowerCase().replace(/\s+/g, '-')}.urumi.app`,
-      adminUrl: `https://${newStore.name.toLowerCase().replace(/\s+/g, '-')}.urumi.app/admin`
-    };
-    setStores([store, ...stores]);
-    
-    // Simulate provisioning success after 5 seconds
-    setTimeout(() => {
-      setStores(prev => prev.map(s => s.id === store.id ? { ...s, status: 'Ready' } : s));
-    }, 5000);
+  const handleCreate = async (newStore) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/stores`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newStore.name,
+          engine: newStore.type.toLowerCase()
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Creation failed');
+      }
+
+      const created = await response.json();
+      // Refetch immediately to ensure consistent sorting and state from server
+      await fetchStores();
+    } catch (err) {
+      throw err;
+    }
   };
 
   const filteredStores = stores.filter(s => 
@@ -64,75 +84,78 @@ const StoreDashboard = () => {
   );
 
   return (
-    <div className="animate-fade-in">
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '2.5rem' }}>
+    <div className="fade-in">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '32px' }}>
         <div>
-          <h1 style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>Store Dashboard</h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem' }}> Manage and provision your ecommerce infrastructure.</p>
+          <h2 style={{ fontSize: '2rem', marginBottom: '4px' }}>Stores</h2>
+          <p style={{ color: 'var(--text-muted)' }}>Manage and monitor your decentralized commerce nodes.</p>
         </div>
-        <button className="btn btn-primary" onClick={() => setIsModalOpen(true)}>
-          <Plus size={20} /> Create New Store
-        </button>
-      </header>
+        
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <div style={{ position: 'relative' }}>
+            <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+            <input 
+              type="text" 
+              placeholder="Search stores..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{
+                padding: '10px 12px 10px 40px',
+                borderRadius: '8px',
+                border: '1px solid var(--border-subtle)',
+                fontSize: '0.875rem',
+                width: '240px',
+                outline: 'none'
+              }}
+            />
+          </div>
+          <button onClick={() => setIsModalOpen(true)} className="btn btn-primary">
+            <Plus size={18} /> Provision Store
+          </button>
+        </div>
+      </div>
 
-      <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem' }}>
-        <div className="glass-panel" style={{ 
-          flex: 1, 
-          display: 'flex', 
-          alignItems: 'center', 
-          padding: '0 1rem',
-          height: '48px',
-          background: 'rgba(255,255,255,0.03)'
+      {isLoading ? (
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '100px 0' }}>
+           <RefreshCcw className="spin" style={{ color: 'var(--text-muted)' }} />
+        </div>
+      ) : filteredStores.length === 0 ? (
+        <div className="card" style={{ textAlign: 'center', padding: '80px 40px', backgroundColor: 'transparent', borderStyle: 'dashed' }}>
+          <h3 style={{ color: 'var(--text-muted)', marginBottom: '16px' }}>No nodes found</h3>
+          <button onClick={() => setIsModalOpen(true)} className="btn btn-secondary">
+            Create your first store
+          </button>
+        </div>
+      ) : (
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', 
+          gap: '24px' 
         }}>
-          <Search size={18} color="var(--text-secondary)" />
-          <input 
-            type="text" 
-            placeholder="Search stores..." 
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            style={{ 
-              background: 'none', 
-              border: 'none', 
-              color: 'var(--text-primary)', 
-              paddingLeft: '1rem',
-              width: '100%',
-              outline: 'none',
-              fontSize: '1rem'
-            }} 
-          />
+          <AnimatePresence mode='popLayout'>
+            {filteredStores.map(store => (
+              <motion.div
+                key={store.id}
+                layout
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ duration: 0.2 }}
+              >
+                <StoreCard 
+                  store={store} 
+                  onDelete={() => handleDelete(store.id)} 
+                />
+              </motion.div>
+            ))}
+          </AnimatePresence>
         </div>
-        <button className="btn btn-secondary" style={{ height: '48px' }}>
-          <Filter size={18} /> Filter
-        </button>
-        <button className="btn btn-secondary" style={{ height: '48px' }}>
-          <RefreshCcw size={18} />
-        </button>
-      </div>
-
-      <div style={{ 
-        display: 'grid', 
-        gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))', 
-        gap: '1.5rem' 
-      }}>
-        <AnimatePresence>
-          {filteredStores.map(store => (
-            <motion.div
-              key={store.id}
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              layout
-            >
-              <StoreCard store={store} onDelete={() => handleDelete(store.id)} />
-            </motion.div>
-          ))}
-        </AnimatePresence>
-      </div>
+      )}
 
       <CreateStoreModal 
         isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
-        onCreate={handleCreate} 
+        onClose={() => setIsModalOpen(false)}
+        onCreate={handleCreate}
       />
     </div>
   );

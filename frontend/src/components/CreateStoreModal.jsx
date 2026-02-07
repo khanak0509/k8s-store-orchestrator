@@ -1,19 +1,31 @@
 import React, { useState } from 'react';
-import { X, Server, ShoppingCart, Zap, Info } from 'lucide-react';
+import { X, ShoppingCart, Zap, Info, RefreshCcw, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const CreateStoreModal = ({ isOpen, onClose, onCreate }) => {
   const [name, setName] = useState('');
   const [type, setType] = useState('WooCommerce');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState(null);
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!name.trim()) return;
-    onCreate({ name, type });
-    setName('');
-    onClose();
+    
+    setIsSubmitting(true);
+    setError(null);
+    
+    try {
+      await onCreate({ name, type });
+      setName('');
+      onClose();
+    } catch (err) {
+      setError(err.message || 'Deployment failed. Please check cluster health.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -21,104 +33,140 @@ const CreateStoreModal = ({ isOpen, onClose, onCreate }) => {
       <div style={{
         position: 'fixed',
         inset: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.8)',
-        backdropFilter: 'blur(4px)',
+        backgroundColor: 'rgba(15, 23, 42, 0.7)',
+        backdropFilter: 'blur(8px)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 1000,
-        padding: '1rem'
+        padding: '20px'
       }}>
         <motion.div 
-          initial={{ opacity: 0, scale: 0.9, y: 20 }}
+          initial={{ opacity: 0, scale: 0.95, y: 16 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.9, y: 20 }}
-          className="glass-panel" 
-          style={{ width: '100%', maxWidth: '500px', padding: '2rem', position: 'relative' }}
+          exit={{ opacity: 0, scale: 0.95, y: 16 }}
+          transition={{ duration: 0.2, ease: "easeOut" }}
+          style={{ 
+            width: '100%', 
+            maxWidth: '460px', 
+            backgroundColor: 'white',
+            borderRadius: '16px',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+            padding: '32px',
+            position: 'relative'
+          }}
         >
           <button 
+            disabled={isSubmitting}
             onClick={onClose}
-            style={{ position: 'absolute', top: '1.5rem', right: '1.5rem', background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}
+            style={{ position: 'absolute', top: '20px', right: '20px', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: isSubmitting ? 'not-allowed' : 'pointer', display: 'flex' }}
           >
-            <X size={24} />
+            <X size={20} />
           </button>
 
-          <h2 style={{ fontSize: '1.75rem', marginBottom: '0.5rem' }}>Create New Store</h2>
-          <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem' }}>Configure and provision a fresh ecommerce engine.</p>
+          <h2 style={{ fontSize: '1.5rem', marginBottom: '4px' }}>Provision Store</h2>
+          <p style={{ color: 'var(--text-muted)', marginBottom: '24px', fontSize: '0.9rem' }}>Dedicated ecommerce engine configuration.</p>
 
           <form onSubmit={handleSubmit}>
-            <div style={{ marginBottom: '1.5rem' }}>
-              <label style={{ display: 'block', color: 'var(--text-primary)', fontWeight: '600', marginBottom: '0.5rem' }}>Store Name</label>
+            <div style={{ marginBottom: '24px' }}>
+              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', marginBottom: '8px' }}>Store Identifier</label>
               <input 
+                disabled={isSubmitting}
                 type="text" 
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. My Awesome Shop"
+                placeholder="e.g. flagship-store"
                 style={{
                   width: '100%',
-                  padding: '0.75rem 1rem',
-                  backgroundColor: 'var(--bg-primary)',
-                  border: '1px solid var(--border-color)',
+                  padding: '12px 16px',
+                  backgroundColor: '#f8fafc',
+                  border: '1px solid var(--border-subtle)',
                   borderRadius: '8px',
-                  color: 'white',
                   fontSize: '1rem',
                   outline: 'none',
-                  transition: 'border-color 0.2s'
+                  transition: 'all 0.2s',
+                  opacity: isSubmitting ? 0.7 : 1
                 }}
-                onFocus={(e) => e.target.style.borderColor = 'var(--accent-primary)'}
-                onBlur={(e) => e.target.style.borderColor = 'var(--border-color)'}
+                onFocus={(e) => {
+                    e.target.style.borderColor = 'var(--text-main)';
+                    e.target.style.backgroundColor = 'white';
+                    e.target.style.boxShadow = '0 0 0 2px rgba(15, 23, 42, 0.1)';
+                }}
+                onBlur={(e) => {
+                    e.target.style.borderColor = 'var(--border-subtle)';
+                    e.target.style.backgroundColor = '#f8fafc';
+                    e.target.style.boxShadow = 'none';
+                }}
               />
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '6px' }}>Lowercase, alphanumeric, and hyphens only.</p>
             </div>
 
-            <div style={{ marginBottom: '2rem' }}>
-              <label style={{ display: 'block', color: 'var(--text-primary)', fontWeight: '600', marginBottom: '1rem' }}>Select Engine</label>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div style={{ marginBottom: '32px' }}>
+              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', marginBottom: '12px' }}>Engine Type</label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div 
-                  onClick={() => setType('WooCommerce')}
-                  className="glass-panel"
+                  onClick={() => !isSubmitting && setType('WooCommerce')}
                   style={{
-                    padding: '1rem',
-                    cursor: 'pointer',
-                    borderColor: type === 'WooCommerce' ? 'var(--accent-primary)' : 'var(--border-color)',
-                    background: type === 'WooCommerce' ? 'rgba(88, 166, 255, 0.05)' : 'none',
-                    textAlign: 'center'
+                    padding: '12px',
+                    cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                    borderRadius: '12px',
+                    border: '2px solid',
+                    borderColor: type === 'WooCommerce' ? 'var(--text-main)' : 'var(--border-subtle)',
+                    backgroundColor: type === 'WooCommerce' ? '#f8fafc' : 'white',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '6px',
+                    transition: 'all 0.2s'
                   }}
                 >
-                  <ShoppingCart size={32} color={type === 'WooCommerce' ? 'var(--accent-primary)' : 'var(--text-secondary)'} style={{ marginBottom: '0.5rem' }} />
-                  <p style={{ fontWeight: '600', color: type === 'WooCommerce' ? 'var(--text-bright)' : 'var(--text-secondary)' }}>WooCommerce</p>
-                  <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '4px' }}>WordPress Based</p>
+                  <ShoppingCart size={20} color={type === 'WooCommerce' ? 'var(--text-main)' : 'var(--text-muted)'} />
+                  <span style={{ fontSize: '0.8rem', fontWeight: '600', color: type === 'WooCommerce' ? 'var(--text-main)' : 'var(--text-muted)' }}>WooCommerce</span>
                 </div>
                 <div 
-                  onClick={() => setType('MedusaJS')}
-                  className="glass-panel"
+                  onClick={() => !isSubmitting && setType('MedusaJS')}
                   style={{
-                    padding: '1rem',
-                    cursor: 'pointer',
-                    borderColor: type === 'MedusaJS' ? 'var(--accent-primary)' : 'var(--border-color)',
-                    background: type === 'MedusaJS' ? 'rgba(88, 166, 255, 0.05)' : 'none',
-                    textAlign: 'center'
+                    padding: '12px',
+                    cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                    borderRadius: '12px',
+                    border: '2px solid',
+                    borderColor: type === 'MedusaJS' ? 'var(--text-main)' : 'var(--border-subtle)',
+                    backgroundColor: type === 'MedusaJS' ? '#f8fafc' : 'white',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '6px',
+                    transition: 'all 0.2s'
                   }}
                 >
-                  <Zap size={32} color={type === 'MedusaJS' ? 'var(--accent-primary)' : 'var(--text-secondary)'} style={{ marginBottom: '0.5rem' }} />
-                  <p style={{ fontWeight: '600', color: type === 'MedusaJS' ? 'var(--text-bright)' : 'var(--text-secondary)' }}>MedusaJS</p>
-                  <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '4px' }}>Headless / Node.js</p>
+                  <Zap size={20} color={type === 'MedusaJS' ? 'var(--text-main)' : 'var(--text-muted)'} />
+                  <span style={{ fontSize: '0.8rem', fontWeight: '600', color: type === 'MedusaJS' ? 'var(--text-main)' : 'var(--text-muted)' }}>MedusaJS</span>
                 </div>
               </div>
             </div>
 
-            <div className="glass-panel" style={{ padding: '1rem', background: 'rgba(88, 166, 255, 0.05)', display: 'flex', gap: '0.75rem', marginBottom: '2rem' }}>
-              <Info size={20} color="var(--accent-primary)" />
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-primary)', lineHeight: '1.4' }}>
-                Provisioning will create a dedicated namespace, database, and ingress for this store. Estimated time: ~60s.
-              </p>
-            </div>
+            {error && (
+              <div style={{ display: 'flex', gap: '8px', padding: '12px', background: 'var(--danger-light)', borderRadius: '8px', marginBottom: '24px' }}>
+                <AlertCircle size={18} color="var(--danger)" />
+                <p style={{ fontSize: '0.85rem', color: 'var(--danger)', fontWeight: 500 }}>{error}</p>
+              </div>
+            )}
 
-            <div style={{ display: 'flex', gap: '1rem' }}>
-              <button type="button" onClick={onClose} className="btn btn-secondary" style={{ flex: 1, justifyContent: 'center' }}>
+            {!error && (
+              <div style={{ padding: '12px', background: '#f8fafc', borderRadius: '8px', display: 'flex', gap: '10px', marginBottom: '24px', border: '1px solid var(--border-subtle)' }}>
+                <Info size={18} color="var(--primary)" />
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: '1.5' }}>
+                  This will provision an isolated K8s namespace with dedicated resource quotas and ingress.
+                </p>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button disabled={isSubmitting} type="button" onClick={onClose} className="btn btn-secondary" style={{ flex: 1 }}>
                 Cancel
               </button>
-              <button type="submit" className="btn btn-primary" style={{ flex: 2, justifyContent: 'center' }}>
-                Provision Store
+              <button disabled={isSubmitting} type="submit" className="btn btn-primary" style={{ flex: 2 }}>
+                {isSubmitting ? <><RefreshCcw size={16} className="spin" /> Deploying...</> : 'Deploy Engine'}
               </button>
             </div>
           </form>
