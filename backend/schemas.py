@@ -28,6 +28,7 @@ class StoreResponse(StoreBase):
     namespace: str
     status: str
     url: Optional[str] = None
+    password: Optional[str] = None
     created_at: datetime
     error_message: Optional[str] = None
 
