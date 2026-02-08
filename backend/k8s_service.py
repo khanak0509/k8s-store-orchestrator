@@ -88,26 +88,46 @@ spec:
 
 import time
 
-def k8s_wait_for_ready(namespace: str, timeout: int = 300) -> bool:
+def k8s_wait_for_ready(namespace: str, timeout: int = 300) -> tuple[bool, str]:
     start_time = time.time()
+    last_error = "Timed out waiting for pods to be ready"
+    
     while time.time() - start_time < timeout:
         try:
-            cmd = ["kubectl", "get", "pods", "-n", namespace, "-o", "jsonpath={.items[*].status.containerStatuses[*].ready}"]
-            result = subprocess.run(cmd, capture_output=True, text=True)
+            # 1. Check if pods are ready
+            cmd_ready = ["kubectl", "get", "pods", "-n", namespace, "-o", "jsonpath={.items[*].status.containerStatuses[*].ready}"]
+            result_ready = subprocess.run(cmd_ready, capture_output=True, text=True)
             
-            if result.returncode == 0:
-                statuses = result.stdout.split()
+            if result_ready.returncode == 0:
+                statuses = result_ready.stdout.split()
                 if statuses and all(s == "true" for s in statuses):
                     logger.info(f"All pods in {namespace} are Ready.")
-                    return True
+                    return True, "Ready"
             
+            # 2. If not ready, check for "Terminal Errors"
+            # Check for scheduling errors (like Quota Exceeded)
+            cmd_events = ["kubectl", "get", "events", "-n", namespace, "--field-selector", "type=Warning", "-o", "jsonpath={.items[-1:].message}"]
+            result_events = subprocess.run(cmd_events, capture_output=True, text=True)
+            if result_events.stdout:
+                last_error = result_events.stdout
+                if "exceeded quota" in last_error.lower():
+                    return False, f"Resource Quota Exceeded: {last_error}"
+
+            # Check for container errors (like ImagePullBackOff or CrashLoop)
+            cmd_pod_status = ["kubectl", "get", "pods", "-n", namespace, "-o", "jsonpath={.items[*].status.containerStatuses[*].state.waiting.reason}"]
+            result_status = subprocess.run(cmd_pod_status, capture_output=True, text=True)
+            if result_status.stdout:
+                reasons = result_status.stdout.split()
+                if any(r in ["ImagePullBackOff", "ErrImagePull", "CrashLoopBackOff"] for r in reasons):
+                    return False, f"Deployment Error: {reasons[0]}"
+
             time.sleep(5)
         except Exception as e:
             logger.error(f"Error checking pod status: {e}")
             time.sleep(5)
     
     logger.error(f"Timeout waiting for pods in {namespace} to be ready.")
-    return False
+    return False, last_error
 
 def k8s_deploy_store(name: str, engine_type: str, namespace: str, password: str = None):
     demo_password = password or os.getenv("DEMO_STORE_PASSWORD", "UrumiRound1Secure!")

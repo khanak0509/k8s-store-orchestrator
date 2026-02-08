@@ -53,13 +53,15 @@ def provision_store_task(store_id: int, name: str, engine_type: str, namespace: 
             
             if success:
                 logger.info(f"[{name}] Deployment initiated. Waiting for pods to be Ready...")
-                if k8s_service.k8s_wait_for_ready(namespace):
+                is_ready, reason = k8s_service.k8s_wait_for_ready(namespace)
+                if is_ready:
                     store.status = StoreStatus.READY
                     store.url = info
                     logger.info(f"[{name}] Provisioning Complete: {info}")
                 else:
                     store.status = StoreStatus.FAILED
-                    store.error_message = "Timed out waiting for pods to be ready"
+                    store.error_message = reason
+                    logger.error(f"[{name}] Provisioning failed: {reason}")
             else:
                 store.status = StoreStatus.FAILED
                 store.error_message = info
