@@ -38,10 +38,10 @@ metadata:
   namespace: {namespace}
 spec:
   hard:
-    requests.cpu: "500m"
-    requests.memory: "512Mi"
-    limits.cpu: "1"
-    limits.memory: "1Gi"
+    requests.cpu: "1000m"
+    requests.memory: "1Gi"
+    limits.cpu: "2"
+    limits.memory: "2Gi"
     pods: "10"
 """
         cmd = ["kubectl", "apply", "-f", "-"]
