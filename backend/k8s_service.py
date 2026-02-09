@@ -2,6 +2,7 @@ import subprocess
 import logging
 import os
 import shutil
+import time
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -30,20 +31,14 @@ def k8s_create_namespace(name: str) -> bool:
 
 def k8s_apply_resource_quota(namespace: str):
     try:
-        quota_yaml = f"""
-apiVersion: v1
-kind: ResourceQuota
-metadata:
-  name: store-quota
-  namespace: {namespace}
-spec:
-  hard:
-    requests.cpu: "1000m"
-    requests.memory: "1Gi"
-    limits.cpu: "2"
-    limits.memory: "2Gi"
-    pods: "10"
-"""
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        template_path = os.path.join(base_dir, "infra", "k8s", "templates", "resource_quota.yaml")
+        
+        with open(template_path, "r") as f:
+            template = f.read()
+            
+        quota_yaml = template.replace("{{namespace}}", namespace)
+        
         cmd = ["kubectl", "apply", "-f", "-"]
         subprocess.run(cmd, input=quota_yaml, capture_output=True, text=True, check=True)
         logger.info(f"ResourceQuota applied to {namespace}")
@@ -54,30 +49,14 @@ spec:
 
 def k8s_apply_network_policy(namespace: str):
     try:
-        policy_yaml = f"""
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: default-deny-external
-  namespace: {namespace}
-spec:
-  podSelector: {{}}
-  policyTypes:
-  - Ingress
-  - Egress
-  ingress:
-  - from:
-    - podSelector: {{}} # Allow traffic from within same namespace
-    - namespaceSelector:
-        matchLabels:
-          kubernetes.io/metadata.name: kube-system # Allow system probes
-  egress:
-  - to:
-    - podSelector: {{}} # Allow traffic within same namespace
-    - namespaceSelector:
-        matchLabels:
-          kubernetes.io/metadata.name: kube-system # Allow DNS/System egress
-"""
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        template_path = os.path.join(base_dir, "infra", "k8s", "templates", "network_policy.yaml")
+        
+        with open(template_path, "r") as f:
+            template = f.read()
+            
+        policy_yaml = template.replace("{{namespace}}", namespace)
+        
         cmd = ["kubectl", "apply", "-f", "-"]
         subprocess.run(cmd, input=policy_yaml, capture_output=True, text=True, check=True)
         logger.info(f"NetworkPolicy applied to {namespace}")
@@ -86,7 +65,6 @@ spec:
         logger.error(f"Failed to apply NetworkPolicy to {namespace}: {e}")
         return False
 
-import time
 
 def k8s_wait_for_ready(namespace: str, timeout: int = 300) -> tuple[bool, str]:
     start_time = time.time()
