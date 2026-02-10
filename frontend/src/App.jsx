@@ -1,6 +1,6 @@
 import React from 'react';
 import StoreDashboard from './components/StoreDashboard';
-import { Store } from 'lucide-react';
+import InfrastructureMonitor from './components/InfrastructureMonitor';
 
 const Navbar = () => (
   <header style={{ 
@@ -11,25 +11,18 @@ const Navbar = () => (
     top: 0,
     zIndex: 50,
     display: 'flex',
-    alignItems: 'center'
+    alignItems: 'center',
+    padding: '0 24px'
   }}>
-    <div className="container" style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-        <div style={{ 
-          backgroundColor: 'var(--text-main)', 
-          padding: '8px', 
-          borderRadius: '8px',
-          display: 'flex'
-        }}>
-          <Store size={20} color="white" />
-        </div>
-        <h1 style={{ fontSize: '1.25rem', margin: 0 }}>Urumi Ops</h1>
-      </div>
-      
-      <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
-        <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: 500 }}>Infrastructure Monitor</span>
-      </div>
+    <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
+      <h1 style={{ fontSize: '1.25rem', margin: 0, fontWeight: 700, whiteSpace: 'nowrap' }}>urumi round 1</h1>
     </div>
+    
+    <div style={{ flex: 2, display: 'flex', justifyContent: 'center' }}>
+      <InfrastructureMonitor />
+    </div>
+
+    <div style={{ flex: 1 }}></div>
   </header>
 );
 

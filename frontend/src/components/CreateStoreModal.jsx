@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, ShoppingCart, Zap, Info, RefreshCcw, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -7,6 +8,19 @@ const CreateStoreModal = ({ isOpen, onClose, onCreate }) => {
   const [type, setType] = useState('WooCommerce');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
+
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    // Cleanup on unmount
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -28,19 +42,27 @@ const CreateStoreModal = ({ isOpen, onClose, onCreate }) => {
     }
   };
 
-  return (
+  return createPortal(
     <AnimatePresence>
       <div style={{
         position: 'fixed',
-        inset: 0,
-        backgroundColor: 'rgba(15, 23, 42, 0.7)',
-        backdropFilter: 'blur(8px)',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: '100vw',
+        height: '100vh',
+        backgroundColor: 'rgba(0, 0, 0, 0.75)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 1000,
+        zIndex: 9999,
         padding: '20px'
-      }}>
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      >
         <motion.div 
           initial={{ opacity: 0, scale: 0.95, y: 16 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -64,7 +86,7 @@ const CreateStoreModal = ({ isOpen, onClose, onCreate }) => {
             <X size={20} />
           </button>
 
-          <h2 style={{ fontSize: '1.5rem', marginBottom: '4px' }}>Provision Store</h2>
+          <h2 style={{ fontSize: '1.5rem', marginBottom: '4px' }}>Create Store</h2>
           <p style={{ color: 'var(--text-muted)', marginBottom: '24px', fontSize: '0.9rem' }}>Dedicated ecommerce engine configuration.</p>
 
           <form onSubmit={handleSubmit}>
@@ -156,7 +178,7 @@ const CreateStoreModal = ({ isOpen, onClose, onCreate }) => {
               <div style={{ padding: '12px', background: '#f8fafc', borderRadius: '8px', display: 'flex', gap: '10px', marginBottom: '24px', border: '1px solid var(--border-subtle)' }}>
                 <Info size={18} color="var(--primary)" />
                 <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: '1.5' }}>
-                  This will provision an isolated K8s namespace with dedicated resource quotas and ingress.
+                  This will create an isolated K8s namespace with dedicated resource quotas and ingress.
                 </p>
               </div>
             )}
@@ -172,7 +194,8 @@ const CreateStoreModal = ({ isOpen, onClose, onCreate }) => {
           </form>
         </motion.div>
       </div>
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 };
 

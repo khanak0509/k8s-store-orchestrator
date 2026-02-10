@@ -1,8 +1,27 @@
 import React, { useState } from 'react';
-import { ExternalLink, Trash2, Clock, Globe, ShieldCheck, AlertCircle, RefreshCcw, Lock, Copy, Check } from 'lucide-react';
+import { ExternalLink, Trash2, Clock, Globe, ShieldCheck, AlertCircle, RefreshCcw, Lock, Copy, Check, Activity } from 'lucide-react';
 
 const StoreCard = ({ store, onDelete }) => {
   const [copied, setCopied] = useState(false);
+  const [quota, setQuota] = useState(null);
+  const [showQuota, setShowQuota] = useState(false);
+
+  const fetchQuota = async () => {
+    if (store.status !== 'Ready') return;
+    try {
+      const response = await fetch(`http://localhost:8000/stores/${store.id}/quota`);
+      if (response.ok) {
+        const data = await response.json();
+        setQuota(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch quota:', err);
+    }
+  };
+
+  React.useEffect(() => {
+      if (showQuota) fetchQuota();
+  }, [showQuota, store.status]);
 
   const getStatusBadge = (status) => {
     switch (status) {
@@ -37,6 +56,29 @@ const StoreCard = ({ store, onDelete }) => {
   const adminUrl = store.engine === 'woocommerce' 
     ? `${store.url}/wp-admin` 
     : `${store.url}/admin`;
+
+  const parseK8sUnit = (value, type) => {
+    if (!value) return 0;
+    const str = value.toString();
+    const num = parseFloat(str);
+    
+    if (type === 'cpu') {
+      if (str.endsWith('m')) return num;
+      return num * 1000;
+    }
+    
+    if (type === 'memory') {
+      const units = { 'Ki': 1, 'Mi': 1024, 'Gi': 1024 * 1024, 'Ti': 1024 * 1024 * 1024 };
+      for (const [unit, multiplier] of Object.entries(units)) {
+        if (str.endsWith(unit)) return num * multiplier;
+      }
+      return num / 1024; // Default to KB for raw numbers if needed, but k8s usually uses units
+    }
+    return num;
+  };
+
+  const cpuPercent = quota ? (parseK8sUnit(quota.cpu_used, 'cpu') / parseK8sUnit(quota.cpu_limit, 'cpu')) * 100 : 0;
+  const memPercent = quota ? (parseK8sUnit(quota.memory_used, 'memory') / parseK8sUnit(quota.memory_limit, 'memory')) * 100 : 0;
 
   return (
     <div className="card" style={{ 
@@ -98,8 +140,22 @@ const StoreCard = ({ store, onDelete }) => {
                             {store.password}
                         </code>
                         <button 
-                            onClick={() => copyToClipboard(store.password)}
-                            style={{ background: 'none', border: 'none', color: copied ? 'var(--success)' : 'var(--text-muted)', cursor: 'pointer', padding: '4px', display: 'flex' }}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                copyToClipboard(store.password);
+                            }}
+                            title={copied ? "Copied!" : "Copy Password"}
+                            style={{ 
+                                background: 'none', 
+                                border: 'none', 
+                                color: copied ? 'var(--success)' : 'var(--text-muted)', 
+                                cursor: 'pointer', 
+                                padding: '6px', 
+                                display: 'flex',
+                                borderRadius: '4px',
+                                transition: 'all 0.2s',
+                                backgroundColor: copied ? 'rgba(34, 197, 94, 0.1)' : 'transparent'
+                            }}
                         >
                             {copied ? <Check size={14} /> : <Copy size={14} />}
                         </button>
@@ -125,6 +181,74 @@ const StoreCard = ({ store, onDelete }) => {
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', padding: '12px', borderRadius: '8px', background: 'var(--danger-light)' }}>
                 <AlertCircle size={14} color="var(--danger)" style={{ marginTop: '2px' }} />
                 <p style={{ fontSize: '0.8rem', color: 'var(--danger)', margin: 0 }}>{store.error_message}</p>
+            </div>
+        )}
+
+        {/* Resource Quotas */}
+        {store.status === 'Ready' && (
+            <div style={{ marginTop: '8px' }}>
+                <button 
+                    onClick={() => setShowQuota(!showQuota)}
+                    style={{ 
+                        background: 'none', 
+                        border: 'none', 
+                        color: 'var(--primary)', 
+                        fontSize: '0.75rem', 
+                        fontWeight: 600, 
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        padding: 0,
+                        marginBottom: showQuota ? '12px' : 0
+                    }}
+                >
+                    <Activity size={12} /> {showQuota ? 'Hide' : 'Check'} Resource Capacity
+                </button>
+
+                {showQuota && (
+                    <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
+                        {!quota ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <RefreshCcw size={12} className="spin" />
+                                <span style={{ fontSize: '0.75rem' }}>Fetching live metrics...</span>
+                            </div>
+                        ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                <div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>CPU LIMIT</span>
+                                        <span style={{ fontSize: '0.7rem', fontWeight: 700 }}>{quota.cpu_used} / {quota.cpu_limit}</span>
+                                    </div>
+                                    <div style={{ height: '4px', background: '#e2e8f0', borderRadius: '2px', overflow: 'hidden' }}>
+                                        <div style={{ 
+                                            width: `${Math.min(100, cpuPercent)}%`, 
+                                            height: '100%', 
+                                            background: cpuPercent > 90 ? 'var(--danger)' : 'var(--primary)',
+                                            borderRadius: '2px',
+                                            transition: 'width 0.5s ease'
+                                        }}></div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>MEMORY LIMIT</span>
+                                        <span style={{ fontSize: '0.7rem', fontWeight: 700 }}>{quota.memory_used} / {quota.memory_limit}</span>
+                                    </div>
+                                    <div style={{ height: '4px', background: '#e2e8f0', borderRadius: '2px', overflow: 'hidden' }}>
+                                        <div style={{ 
+                                            width: `${Math.min(100, memPercent)}%`, 
+                                            height: '100%', 
+                                            background: memPercent > 90 ? 'var(--danger)' : '#8b5cf6',
+                                            borderRadius: '2px',
+                                            transition: 'width 0.5s ease'
+                                        }}></div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
         )}
       </div>

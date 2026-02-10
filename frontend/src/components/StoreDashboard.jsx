@@ -88,7 +88,7 @@ const StoreDashboard = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '32px' }}>
         <div>
           <h2 style={{ fontSize: '2rem', marginBottom: '4px' }}>Stores</h2>
-          <p style={{ color: 'var(--text-muted)' }}>Manage and monitor your decentralized commerce nodes.</p>
+          <p style={{ color: 'var(--text-muted)' }}>Manage and monitor your stores.</p>
         </div>
         
         <div style={{ display: 'flex', gap: '12px' }}>
@@ -110,18 +110,18 @@ const StoreDashboard = () => {
             />
           </div>
           <button onClick={() => setIsModalOpen(true)} className="btn btn-primary">
-            <Plus size={18} /> Provision Store
+            <Plus size={18} /> Create Store
           </button>
         </div>
       </div>
-
+ 
       {isLoading ? (
         <div style={{ display: 'flex', justifyContent: 'center', padding: '100px 0' }}>
            <RefreshCcw className="spin" style={{ color: 'var(--text-muted)' }} />
         </div>
       ) : filteredStores.length === 0 ? (
         <div className="card" style={{ textAlign: 'center', padding: '80px 40px', backgroundColor: 'transparent', borderStyle: 'dashed' }}>
-          <h3 style={{ color: 'var(--text-muted)', marginBottom: '16px' }}>No nodes found</h3>
+          <h3 style={{ color: 'var(--text-muted)', marginBottom: '16px' }}>No stores found</h3>
           <button onClick={() => setIsModalOpen(true)} className="btn btn-secondary">
             Create your first store
           </button>
