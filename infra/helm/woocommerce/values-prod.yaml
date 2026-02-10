@@ -143,9 +143,7 @@ lifecycleHooks:
 
           # Run Creation
           create_product "Urumi Beanie" "15" "https://images.unsplash.com/photo-1576871337622-98d48d1cf531?w=800" "$CLOTHING_CAT_ID"
-          create_product "Urumi Hoodie" "45" "https://images.unsplash.com/photo-1556906781?w=800" "$CLOTHING_CAT_ID"
+          create_product "Urumi Hoodie" "45" "https://images.unsplash.com/photo-1556906781-9a412961c28c?w=800" "$CLOTHING_CAT_ID"
           create_product "Urumi Mug"    "12" "https://images.unsplash.com/photo-1514228742587-6b1558fcca3d?w=800" ""
 
           echo "🚀 PROVISIONING COMPLETE!" >> /tmp/provision.log
-
-          echo "🚀 PROVISIONING COMPLETE!"
