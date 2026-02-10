@@ -16,13 +16,20 @@ mariadb:
     persistence:
       enabled: true
       size: 10Gi
+    resources:
+      requests:
+        cpu: 50m
+        memory: 256Mi
+      limits:
+        cpu: 200m
+        memory: 512Mi
 resources:
   requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
     cpu: 300m
     memory: 512Mi
-  limits:
-    cpu: 600m
-    memory: 1Gi
 
 # Automation & Self-Healing
 startupProbe:
