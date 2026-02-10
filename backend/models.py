@@ -3,6 +3,7 @@ from sqlalchemy import Column, Integer, String, DateTime, Enum
 from database import Base
 import enum
 
+#  Tracks lifecycle state (Provisioning -> Ready)
 class StoreStatus(str, enum.Enum):
     PROVISIONING = "Provisioning"
     READY = "Ready"
@@ -13,6 +14,7 @@ class StoreEngine(str, enum.Enum):
     WOOCOMMERCE = "woocommerce"
     MEDUSA = "medusa"
 
+# Persistence layer for store metadata
 class Store(Base):
     __tablename__ = "stores"
 

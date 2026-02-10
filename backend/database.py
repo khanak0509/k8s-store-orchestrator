@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./sql_app.db")
 
 connect_args = {}
+# Using SQLite for MVP, switchable to Postgres via Env
 if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
     connect_args = {"check_same_thread": False}
 
@@ -19,7 +20,8 @@ engine = create_engine(
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
-
+ 
+# Per-request DB session management
 def get_db() -> Generator[Session, None, None]:
     db = SessionLocal()
     try:

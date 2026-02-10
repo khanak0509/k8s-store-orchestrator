@@ -9,6 +9,7 @@ class StoreBase(BaseModel):
     name: str
     engine: EngineType 
 
+    # Enforce K8s-compatible names (lowercase, hyphens)
     @field_validator('name')
     def validate_k8s_name(cls, v):
         if not re.match(r'^[a-z0-9]([-a-z0-9]*[a-z0-9])?$', v):
@@ -31,5 +32,4 @@ class StoreResponse(StoreBase):
     password: Optional[str] = None
     created_at: datetime
     error_message: Optional[str] = None
-
     model_config = ConfigDict(from_attributes=True)

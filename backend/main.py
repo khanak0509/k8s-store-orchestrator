@@ -15,10 +15,12 @@ import k8s_service
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Create tables if they don't exist
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="K8s Store Orchestrator API")
 
+# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"], 
@@ -30,10 +32,12 @@ app.add_middleware(
 import secrets
 import string
 
+# Generate cryptographically secure passwords
 def generate_password(length=8):
     alphabet = string.ascii_letters + string.digits
     return ''.join(secrets.choice(alphabet) for _ in range(length))
 
+# Handles slow K8s operations async
 def provision_store_task(store_id: int, name: str, engine_type: str, namespace: str, password: str):
     with SessionLocal() as db:
         store = db.query(Store).filter(Store.id == store_id).first()
@@ -46,15 +50,21 @@ def provision_store_task(store_id: int, name: str, engine_type: str, namespace: 
             if not k8s_service.k8s_create_namespace(namespace):
                 raise Exception("Failed to create Kubernetes namespace")
 
+            # Apply Quotas & Network Policy
             k8s_service.k8s_apply_resource_quota(namespace)
             k8s_service.k8s_apply_network_policy(namespace)
 
+            # Helm to install the store
             success, info = k8s_service.k8s_deploy_store(name, engine_type, namespace, password)
             
             if success:
+                # Poll until pods are actually ready
                 logger.info(f"[{name}] Deployment initiated. Waiting for pods to be Ready...")
                 is_ready, reason = k8s_service.k8s_wait_for_ready(namespace)
                 if is_ready:
+                    # Bootstrap now handled declaratively by postStart lifecycle hook
+                    # See values-*.yaml -> lifecycleHooks.postStart
+                    
                     store.status = StoreStatus.READY
                     store.url = info
                     logger.info(f"[{name}] Provisioning Complete: {info}")
@@ -74,6 +84,7 @@ def provision_store_task(store_id: int, name: str, engine_type: str, namespace: 
         finally:
             db.commit()
 
+# Delete store
 def delete_store_task(store_id: int, name: str, namespace: str):
     with SessionLocal() as db:
         try:
@@ -92,6 +103,7 @@ def delete_store_task(store_id: int, name: str, namespace: str):
 def health_check():
     return {"status": "Orchestrator is Running"}
 
+# Create Store 
 @app.post("/stores", response_model=StoreResponse)
 def create_store(
     store_req: StoreCreate, 
@@ -129,6 +141,22 @@ def create_store(
 @app.get("/stores", response_model=list[StoreResponse])
 def list_stores(db: Session = Depends(get_db)):
     return db.query(Store).all()
+
+@app.get("/cluster/health")
+def get_cluster_health():
+    return k8s_service.k8s_get_cluster_status()
+
+@app.get("/stores/{store_id}/quota")
+def get_store_quota(store_id: int, db: Session = Depends(get_db)):
+    store = db.query(Store).filter(Store.id == store_id).first()
+    if not store:
+        raise HTTPException(status_code=404, detail="Store not found")
+    
+    quota = k8s_service.k8s_get_namespace_quota(store.namespace)
+    if not quota:
+        raise HTTPException(status_code=404, detail="Quota not found for this store")
+    
+    return quota
 
 @app.delete("/stores/{store_id}")
 def delete_store(
