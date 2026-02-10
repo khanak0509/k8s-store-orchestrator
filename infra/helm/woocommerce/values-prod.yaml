@@ -95,6 +95,10 @@ lifecycleHooks:
           echo "📄 Creating Store Pages..."
           wp wc tool run install_pages --user=admin --allow-root
 
+          # Enable COD (Cash on Delivery) for Demo
+          echo "💰 Enabling Cash on Delivery..."
+          wp wc payment_gateway update cod --enabled=true --user=admin --allow-root
+
           # Set Homepage to Shop
           echo "🏠 Setting Homepage..."
           shop_page_id=$(wp post list --name=shop --field=ID --post_type=page --allow-root 2>/dev/null || echo "")
