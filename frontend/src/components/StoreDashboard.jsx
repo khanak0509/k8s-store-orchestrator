@@ -4,7 +4,7 @@ import StoreCard from './StoreCard';
 import CreateStoreModal from './CreateStoreModal';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 const StoreDashboard = () => {
   const [stores, setStores] = useState([]);

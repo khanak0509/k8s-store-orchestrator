@@ -9,7 +9,7 @@ const StoreCard = ({ store, onDelete }) => {
   const fetchQuota = async () => {
     if (store.status !== 'Ready') return;
     try {
-      const response = await fetch(`http://localhost:8000/stores/${store.id}/quota`);
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/stores/${store.id}/quota`);
       if (response.ok) {
         const data = await response.json();
         setQuota(data);

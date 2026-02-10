@@ -9,6 +9,8 @@ const CreateStoreModal = ({ isOpen, onClose, onCreate }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
 
+  const API_BASE_URL = import.meta.env.VITE_API_URL;
+
   // Lock body scroll when modal is open
   useEffect(() => {
     if (isOpen) {

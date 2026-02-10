@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Activity, Database, CheckCircle, AlertCircle, Cpu } from 'lucide-react';
 
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 const InfrastructureMonitor = () => {
   const [status, setStatus] = useState({
