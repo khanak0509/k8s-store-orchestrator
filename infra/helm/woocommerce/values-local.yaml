@@ -54,7 +54,7 @@ lifecycleHooks:
         - -c
         - |
           # URUMI AUTO-PROVISIONING SCRIPT
-          echo "⏳ Hook Started: Waiting for WordPress Core..."
+          echo "Hook Started: Waiting for WordPress Core..."
 
           # Wait until WordPress is installed
           until wp core is-installed --allow-root; do 
@@ -62,38 +62,38 @@ lifecycleHooks:
             sleep 5
           done
 
-          echo "✅ WordPress is Live! Starting Configuration..."
+          echo "WordPress is Live! Starting Configuration..."
 
           # Get store URL from release name
           STORE_URL="http://{{ .Release.Name }}.${BASE_DOMAIN:-127.0.0.1.nip.io}"
-          echo "🌐 Setting URLs to $STORE_URL..."
+          echo "Setting URLs to $STORE_URL..."
           wp option update siteurl "$STORE_URL" --allow-root
           wp option update home "$STORE_URL" --allow-root
 
           # Clean up default content
-          echo "🧹 Removing default content..."
+          echo "Removing default content..."
           wp post delete 1 --force --allow-root 2>/dev/null || true
           wp post delete 2 --force --allow-root 2>/dev/null || true
 
           # Rename Site
-          echo "🏷️ Renaming Site..."
+          echo "Renaming Site..."
           wp option update blogname "Urumi Store" --allow-root
           wp option update blogdescription "Kubernetes-Orchestrated WooCommerce" --allow-root
 
           # Install & Activate WooCommerce
-          echo "📦 Installing WooCommerce..."
+          echo "Installing WooCommerce..."
           wp plugin install woocommerce --activate --force --allow-root
 
           # Install Storefront Theme
-          echo "🎨 Installing Storefront Theme..."
-          wp theme install storefront --activate --allow-root
+          echo "Installing Storefront Theme..."
+          wp theme install storefront --activate --force --allow-root
 
           # Setup Store Pages
-          echo "📄 Creating Store Pages..."
+          echo "Creating Store Pages..."
           wp wc tool run install_pages --user=admin --allow-root
 
           # Set Homepage to Shop
-          echo "🏠 Setting Homepage..."
+          echo "Setting Homepage..."
           shop_page_id=$(wp post list --name=shop --field=ID --post_type=page --allow-root 2>/dev/null || echo "")
           if [ -n "$shop_page_id" ]; then
             wp option update show_on_front 'page' --allow-root
@@ -101,7 +101,7 @@ lifecycleHooks:
           fi
 
           # Create Demo Products
-          echo "👕 Creating Demo Products..."
+          echo "Creating Demo Products..."
           wp wc product create \
             --name="Urumi Beanie" \
             --type=simple \
@@ -126,4 +126,4 @@ lifecycleHooks:
             --user=admin \
             --allow-root 2>/dev/null || true
 
-          echo "🚀 PROVISIONING COMPLETE!"
+          echo "PROVISIONING COMPLETE!"
