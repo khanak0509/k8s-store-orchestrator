@@ -84,46 +84,63 @@ lifecycleHooks:
           echo "Installing WooCommerce..."
           wp plugin install woocommerce --activate --force --allow-root
 
-          # Install Storefront Theme
-          echo "Installing Storefront Theme..."
-          wp theme install storefront --activate --force --allow-root
+          # Install & Activate Astra Theme
+          echo "🎨 Installing Astra Theme..."
+          wp theme install astra --activate --allow-root
 
           # Setup Store Pages
-          echo "Creating Store Pages..."
+          echo "📄 Creating Store Pages..."
           wp wc tool run install_pages --user=admin --allow-root
 
+          # Enable COD (Cash on Delivery) for Demo
+          echo "💰 Enabling Cash on Delivery..."
+          wp wc payment_gateway update cod --enabled=true --user=admin --allow-root
+
           # Set Homepage to Shop
-          echo "Setting Homepage..."
+          echo "🏠 Setting Homepage..."
           shop_page_id=$(wp post list --name=shop --field=ID --post_type=page --allow-root 2>/dev/null || echo "")
           if [ -n "$shop_page_id" ]; then
             wp option update show_on_front 'page' --allow-root
             wp option update page_on_front $shop_page_id --allow-root
           fi
 
-          # Create Demo Products
-          echo "Creating Demo Products..."
-          wp wc product create \
-            --name="Urumi Beanie" \
-            --type=simple \
-            --regular_price=15 \
-            --short_description="Comfortable beanie for developers" \
-            --user=admin \
-            --allow-root 2>/dev/null || true
+          # Create Product Categories
+          echo "📂 Creating Categories..." >> /tmp/provision.log
+          CLOTHING_CAT_ID=$(wp wc product_category create --name="Clothing" --user=admin --porcelain --allow-root 2>/dev/null || echo "")
+          echo "Category ID: $CLOTHING_CAT_ID" >> /tmp/provision.log
 
-          wp wc product create \
-            --name="Urumi Hoodie" \
-            --type=simple \
-            --regular_price=45 \
-            --short_description="Premium hoodie with Urumi logo" \
-            --user=admin \
-            --allow-root 2>/dev/null || true
+          # Function to create product safely
+          create_product() {
+            local name="$1"
+            local price="$2"
+            local image="$3"
+            local cat_id="$4"
+            
+            echo "Creating $name..." >> /tmp/provision.log
+            
+            # 1. Create Base Product
+            PID=$(wp wc product create --name="$name" --type=simple --regular_price="$price" --user=admin --porcelain --allow-root 2>>/tmp/provision.log)
+            
+            if [ -n "$PID" ]; then
+              echo "✅ Created $name (ID: $PID)" >> /tmp/provision.log
+              
+              # 2. Assign Category
+              if [ -n "$cat_id" ]; then
+                 wp wc product update $PID --categories="[{\"id\": $cat_id}]" --user=admin --allow-root >> /tmp/provision.log 2>&1
+              fi
 
-          wp wc product create \
-            --name="Urumi Belt" \
-            --type=simple \
-            --regular_price=20 \
-            --short_description="Stylish belt for any occasion" \
-            --user=admin \
-            --allow-root 2>/dev/null || true
+              # 3. Assign Image
+              if [ -n "$image" ]; then
+                 wp wc product update $PID --images="[{\"src\": \"$image\"}]" --user=admin --allow-root >> /tmp/provision.log 2>&1
+              fi
+            else
+              echo "❌ Failed to create $name" >> /tmp/provision.log
+            fi
+          }
 
-          echo "PROVISIONING COMPLETE!"
+          # Run Creation
+          create_product "Urumi Beanie" "15" "https://images.unsplash.com/photo-1576871337622-98d48d1cf531?w=800" "$CLOTHING_CAT_ID"
+          create_product "Urumi Hoodie" "45" "https://images.unsplash.com/photo-1556906781-9a412961c28c?w=800" "$CLOTHING_CAT_ID"
+          create_product "Urumi Mug"    "12" "https://images.unsplash.com/photo-1514228742587-6b1558fcca3d?w=800" ""
+
+          echo "PROVISIONING COMPLETE!" >> /tmp/provision.log
