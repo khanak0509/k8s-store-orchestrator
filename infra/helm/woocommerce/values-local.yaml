@@ -84,6 +84,10 @@ lifecycleHooks:
           echo "Installing WooCommerce..."
           wp plugin install woocommerce --activate --force --allow-root
 
+          # Wait for tables to stabilize
+          echo "⏳ Waiting for WooCommerce to initialize..."
+          sleep 10
+
           # Install & Activate Astra Theme
           echo "🎨 Installing Astra Theme..."
           wp theme install astra --activate --allow-root
@@ -118,24 +122,14 @@ lifecycleHooks:
             
             echo "Creating $name..." >> /tmp/provision.log
             
-            # 1. Create Base Product
-            PID=$(wp wc product create --name="$name" --type=simple --regular_price="$price" --user=admin --porcelain --allow-root 2>>/tmp/provision.log)
+            local img_json="[]"
+            if [ -n "$image" ]; then img_json="[{\"src\":\"$image\"}]"; fi
             
-            if [ -n "$PID" ]; then
-              echo "✅ Created $name (ID: $PID)" >> /tmp/provision.log
-              
-              # 2. Assign Category
-              if [ -n "$cat_id" ]; then
-                 wp wc product update $PID --categories="[{\"id\": $cat_id}]" --user=admin --allow-root >> /tmp/provision.log 2>&1
-              fi
+            local cat_json="[]"
+            if [ -n "$cat_id" ]; then cat_json="[{\"id\":$cat_id}]"; fi
 
-              # 3. Assign Image
-              if [ -n "$image" ]; then
-                 wp wc product update $PID --images="[{\"src\": \"$image\"}]" --user=admin --allow-root >> /tmp/provision.log 2>&1
-              fi
-            else
-              echo "❌ Failed to create $name" >> /tmp/provision.log
-            fi
+            # One-shot creation is more robust
+            wp wc product create --name="$name" --type=simple --regular_price="$price" --categories="$cat_json" --images="$img_json" --user=admin --allow-root >> /tmp/provision.log 2>&1
           }
 
           # Run Creation
