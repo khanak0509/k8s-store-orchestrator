@@ -1,6 +1,16 @@
-# Local Values for Medusa (Stubbed as Nginx for now)
+# Local Development Values for Medusa (Stubbed via Nginx)
 service:
-  type: ClusterIP
+  type: ClusterIP # Traefik handles ingress, so NodePort isn't strictly needed if Ingress is enabled
 ingress:
   enabled: true
   ingressClassName: traefik
+  hostname: "" # Overridden by orchestrator
+  annotations: []
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 100m
+    memory: 128Mi
+replicaCount: 1

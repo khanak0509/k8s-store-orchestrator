@@ -1,0 +1,14 @@
+apiVersion: v2
+name: urumi-medusa
+description: Production-ready MedusaJS wrapper chart for Urumi Stores
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+keywords:
+  - medusa
+  - ecommerce
+  - headless
+dependencies:
+  - name: medusa
+    version: "0.1.0"
+    repository: "file://./charts/medusa" # Placeholder for future implementation

@@ -8,8 +8,122 @@ ingress:
 persistence:
   enabled: true
   size: 1Gi
+resources:
+  requests:
+    memory: "512Mi"
+    cpu: "300m"
+  limits:
+    memory: "1Gi"
+    cpu: "500m"
 mariadb:
   primary:
     persistence:
       enabled: true
       size: 1Gi
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "100m"
+      limits:
+        memory: "512Mi"
+        cpu: "200m"
+
+# Automation & Self-Healing
+startupProbe:
+  enabled: true
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 30 # Allow 5 minutes for first boot
+
+livenessProbe:
+  enabled: true
+  initialDelaySeconds: 60
+  periodSeconds: 10
+
+readinessProbe:
+  enabled: true
+  initialDelaySeconds: 60
+  periodSeconds: 10
+
+lifecycleHooks:
+  postStart:
+    exec:
+      command:
+        - /bin/bash
+        - -c
+        - |
+          # URUMI AUTO-PROVISIONING SCRIPT
+          echo "⏳ Hook Started: Waiting for WordPress Core..."
+
+          # Wait until WordPress is installed
+          until wp core is-installed --allow-root; do 
+            echo "   ...waiting for WP..."
+            sleep 5
+          done
+
+          echo "✅ WordPress is Live! Starting Configuration..."
+
+          # Get store URL from release name
+          STORE_URL="http://{{ .Release.Name }}.${BASE_DOMAIN:-127.0.0.1.nip.io}"
+          echo "🌐 Setting URLs to $STORE_URL..."
+          wp option update siteurl "$STORE_URL" --allow-root
+          wp option update home "$STORE_URL" --allow-root
+
+          # Clean up default content
+          echo "🧹 Removing default content..."
+          wp post delete 1 --force --allow-root 2>/dev/null || true
+          wp post delete 2 --force --allow-root 2>/dev/null || true
+
+          # Rename Site
+          echo "🏷️ Renaming Site..."
+          wp option update blogname "Urumi Store" --allow-root
+          wp option update blogdescription "Kubernetes-Orchestrated WooCommerce" --allow-root
+
+          # Install & Activate WooCommerce
+          echo "📦 Installing WooCommerce..."
+          wp plugin install woocommerce --activate --force --allow-root
+
+          # Install Storefront Theme
+          echo "🎨 Installing Storefront Theme..."
+          wp theme install storefront --activate --allow-root
+
+          # Setup Store Pages
+          echo "📄 Creating Store Pages..."
+          wp wc tool run install_pages --user=admin --allow-root
+
+          # Set Homepage to Shop
+          echo "🏠 Setting Homepage..."
+          shop_page_id=$(wp post list --name=shop --field=ID --post_type=page --allow-root 2>/dev/null || echo "")
+          if [ -n "$shop_page_id" ]; then
+            wp option update show_on_front 'page' --allow-root
+            wp option update page_on_front $shop_page_id --allow-root
+          fi
+
+          # Create Demo Products
+          echo "👕 Creating Demo Products..."
+          wp wc product create \
+            --name="Urumi Beanie" \
+            --type=simple \
+            --regular_price=15 \
+            --short_description="Comfortable beanie for developers" \
+            --user=admin \
+            --allow-root 2>/dev/null || true
+
+          wp wc product create \
+            --name="Urumi Hoodie" \
+            --type=simple \
+            --regular_price=45 \
+            --short_description="Premium hoodie with Urumi logo" \
+            --user=admin \
+            --allow-root 2>/dev/null || true
+
+          wp wc product create \
+            --name="Urumi Belt" \
+            --type=simple \
+            --regular_price=20 \
+            --short_description="Stylish belt for any occasion" \
+            --user=admin \
+            --allow-root 2>/dev/null || true
+
+          echo "🚀 PROVISIONING COMPLETE!"

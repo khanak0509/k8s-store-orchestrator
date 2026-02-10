@@ -1,7 +1,18 @@
+# Production-ready Values for Medusa (Stubbed via Nginx)
+service:
+  type: ClusterIP
 ingress:
   enabled: true
   ingressClassName: traefik
-  hostname: placeholder.medusa.127.0.0.1.nip.io
-
-service:
-  type: ClusterIP
+  hostname: "" # Overridden by orchestrator
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    kubernetes.io/tls-acme: "true"
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 200m
+    memory: 256Mi
+replicaCount: 1

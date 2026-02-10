@@ -2,7 +2,6 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: default-deny-external
-  namespace: { { namespace } }
 spec:
   podSelector: {}
   policyTypes:
@@ -10,13 +9,20 @@ spec:
     - Egress
   ingress:
     - from:
-        - podSelector: {} # Allow traffic from within same namespace
+        - podSelector: {}
         - namespaceSelector:
             matchLabels:
-              kubernetes.io/metadata.name: kube-system # Allow system probes
+              kubernetes.io/metadata.name: kube-system
   egress:
     - to:
-        - podSelector: {} # Allow traffic within same namespace
+        - podSelector: {}
         - namespaceSelector:
             matchLabels:
-              kubernetes.io/metadata.name: kube-system # Allow DNS/System egress
+              kubernetes.io/metadata.name: kube-system
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
