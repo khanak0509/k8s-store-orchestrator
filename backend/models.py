@@ -26,4 +26,5 @@ class Store(Base):
     url = Column(String, nullable=True)
     password = Column(String, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc), onupdate=lambda: datetime.datetime.now(datetime.timezone.utc))
     error_message = Column(String, nullable=True)

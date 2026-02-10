@@ -74,6 +74,28 @@ def k8s_apply_network_policy(namespace: str):
         return False
 
 
+#  Apply default resource requests/limits to catch "naked" pods
+def k8s_apply_limit_range(namespace: str):
+    try:
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        template_path = os.path.join(base_dir, "infra", "k8s", "templates", "limit_range.yaml")
+        
+        with open(template_path, "r") as f:
+            limit_yaml = f.read()
+        
+        cmd = ["kubectl", "apply", "-n", namespace, "-f", "-"]
+        result = subprocess.run(cmd, input=limit_yaml, capture_output=True, text=True)
+        if result.returncode == 0:
+            logger.info(f"LimitRange applied to {namespace}")
+            return True
+        else:
+            logger.error(f"Failed to apply LimitRange to {namespace}: {result.stderr}")
+            return False
+    except Exception as e:
+        logger.error(f"Failed to apply LimitRange to {namespace}: {e}")
+        return False
+
+
 #  Poll K8s API for readiness and check for terminal errors
 def k8s_wait_for_ready(namespace: str, timeout: int = 300) -> tuple[bool, str]:
     start_time = time.time()
@@ -139,6 +161,11 @@ def k8s_deploy_store(name: str, engine_type: str, namespace: str, password: str 
                 "--set", f"mariadb.auth.rootPassword={demo_password}",
                 "--set", f"ingress.hostname={hostname}",
             ]
+            
+            # Apply Guardrails before Helm Install (Pre-provisioning security)
+            k8s_apply_resource_quota(namespace)
+            k8s_apply_network_policy(namespace)
+            k8s_apply_limit_range(namespace)
             
         elif engine_type == "medusa":
             hostname = f"{name}.medusa.{base_domain}"
