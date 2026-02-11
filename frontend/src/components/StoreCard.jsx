@@ -45,7 +45,7 @@ const StoreCard = ({ store, onDelete }) => {
 
   const formatDate = (dateString) => {
     if (!dateString) return 'Just now';
-    const date = new Date(dateString.endsWith('Z') ? dateString : `${dateString}Z`);
+    const date = new Date(dateString);
     return date.toLocaleString('en-US', {
       month: 'short',
       day: 'numeric',
@@ -96,7 +96,7 @@ const StoreCard = ({ store, onDelete }) => {
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
         <div>
-          <h3 style={{ fontSize: '1.25rem', marginBottom: '4px' }}>{store.name}</h3>
+          <h3 style={{ fontSize: '1.25rem', marginBottom: '0' }}>{store.name}</h3>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             {getStatusBadge(store.status)}
             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase' }}>

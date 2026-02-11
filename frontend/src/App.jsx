@@ -32,7 +32,6 @@ function App() {
       <Navbar />
       <div style={{ padding: '2rem 4rem' }}>
         <h1 style={{ marginBottom: '2rem', fontSize: '2.5rem', fontWeight: 'bold' }}>Round 1</h1>
-        <InfrastructureMonitor />
         <StoreDashboard />
       </div>
     </div>
