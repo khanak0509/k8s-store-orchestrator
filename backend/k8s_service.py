@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 if not shutil.which("kubectl") or not shutil.which("helm"):
     logger.critical("kubectl or helm is not installed! provisioning will fail.")
 
-#  Create a dedicated namespace for store isolation
+#  separated namespace for store isolation
 def k8s_create_namespace(name: str) -> bool:
     try:
         cmd = ["kubectl", "create", "namespace", name]
@@ -113,7 +113,6 @@ def k8s_wait_for_ready(namespace: str, timeout: int = 300) -> tuple[bool, str]:
                     logger.info(f"All pods in {namespace} are Ready.")
                     return True, "Ready"
             
-            # If not ready, check for "Terminal Errors"
             # Check for scheduling errors (like Quota Exceeded)
             cmd_events = ["kubectl", "get", "events", "-n", namespace, "--field-selector", "type=Warning", "-o", "jsonpath={.items[-1:].message}"]
             result_events = subprocess.run(cmd_events, capture_output=True, text=True)
@@ -163,8 +162,7 @@ def k8s_deploy_store(name: str, engine_type: str, namespace: str, password: str 
             ]
             
             
-
-            
+         # for now this is just a placeholder not working    
         elif engine_type == "medusa":
             hostname = f"{name}.medusa.{base_domain}"
             command = [
@@ -173,6 +171,7 @@ def k8s_deploy_store(name: str, engine_type: str, namespace: str, password: str 
                 "-f", values_path,
                 "--set", f"ingress.hostname={hostname}",
             ]
+
         else:
             return False, f"Unknown engine type: {engine_type}"
 
@@ -190,53 +189,6 @@ def k8s_deploy_store(name: str, engine_type: str, namespace: str, password: str 
         logger.exception("Deploy function crashed")
         return False, str(e)
 
-
-"""
-
-#  Post-deployment configuration to convert vanilla WordPress into a Shop
-#  DEPRECATED: Bootstrap is now handled by Helm Job (see values-*.yaml extraDeploy)
-#  This function is kept as a fallback for backward compatibility and easy rollback
-def k8s_configure_store(name: str, namespace: str):
-    try:
-        logger.info(f"[{name}] Bootstrapping e-commerce features...")
-        
-        # Get the wordpress pod name
-        pod_cmd = ["kubectl", "get", "pods", "-n", namespace, "-l", "app.kubernetes.io/name=wordpress", "-o", "jsonpath={.items[0].metadata.name}"]
-        pod_result = subprocess.run(pod_cmd, capture_output=True, text=True)
-        if pod_result.returncode != 0 or not pod_result.stdout:
-            logger.error(f"Could not find WordPress pod for bootstrapping in {namespace}")
-            return False
-            
-        pod_name = pod_result.stdout.strip()
-        
-        # Get the store URL for WordPress configuration
-        base_domain = os.getenv("BASE_DOMAIN", "127.0.0.1.nip.io")
-        store_url = f"http://{name}.{base_domain}"
-        
-        # Commands to run inside the pod
-        commands = [
-            # Fix WordPress URL configuration to prevent white screen
-            ["wp", "option", "update", "siteurl", store_url, "--allow-root"],
-            ["wp", "option", "update", "home", store_url, "--allow-root"],
-            # Install WooCommerce and configure the store
-            ["wp", "plugin", "install", "woocommerce", "--activate", "--allow-root"],
-            ["wp", "theme", "install", "storefront", "--activate", "--allow-root"],
-            ["wp", "wc", "tool", "run", "install_pages", "--user=admin", "--allow-root"],
-            ["wp", "wc", "product", "create", "--name=Urumi Beanie", "--type=simple", "--regular_price=15", "--user=admin", "--allow-root"],
-            ["wp", "wc", "product", "create", "--name=Urumi Hoodie", "--type=simple", "--regular_price=45", "--user=admin", "--allow-root"],
-            ["wp", "wc", "product", "create", "--name=Urumi Belt", "--type=simple", "--regular_price=20", "--user=admin", "--allow-root"]
-        ]
-        
-        for cmd in commands:
-            full_cmd = ["kubectl", "exec", "-n", namespace, pod_name, "--"] + cmd
-            logger.info(f"[{name}] Running: {' '.join(cmd)}")
-            subprocess.run(full_cmd, capture_output=True, text=True)
-            
-        return True
-    except Exception as e:
-        logger.error(f"Bootstrap failed for {name}: {e}")
-        return False
-"""
 
 
 #  delete store completely

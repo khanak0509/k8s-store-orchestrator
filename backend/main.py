@@ -37,7 +37,7 @@ def generate_password(length=8):
     alphabet = string.ascii_letters + string.digits
     return ''.join(secrets.choice(alphabet) for _ in range(length))
 
-# Handles slow K8s operations async
+
 def provision_store_task(store_id: int, name: str, engine_type: str, namespace: str, password: str):
     with SessionLocal() as db:
         store = db.query(Store).filter(Store.id == store_id).first()
@@ -50,9 +50,10 @@ def provision_store_task(store_id: int, name: str, engine_type: str, namespace: 
             if not k8s_service.k8s_create_namespace(namespace):
                 raise Exception("Failed to create Kubernetes namespace")
 
-            # Apply Quotas & Network Policy
+            # Apply Quotas, Network Policy & Limit Range
             k8s_service.k8s_apply_resource_quota(namespace)
             k8s_service.k8s_apply_network_policy(namespace)
+            k8s_service.k8s_apply_limit_range(namespace)
 
             # Helm to install the store
             success, info = k8s_service.k8s_deploy_store(name, engine_type, namespace, password)
@@ -62,8 +63,6 @@ def provision_store_task(store_id: int, name: str, engine_type: str, namespace: 
                 logger.info(f"[{name}] Deployment initiated. Waiting for pods to be Ready...")
                 is_ready, reason = k8s_service.k8s_wait_for_ready(namespace)
                 if is_ready:
-                    # Bootstrap now handled declaratively by postStart lifecycle hook
-                    # See values-*.yaml -> lifecycleHooks.postStart
                     
                     store.status = StoreStatus.READY
                     store.url = info
