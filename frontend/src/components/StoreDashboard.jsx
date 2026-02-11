@@ -87,7 +87,7 @@ const StoreDashboard = () => {
     <div className="fade-in">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '32px' }}>
         <div>
-          <h2 style={{ fontSize: '2rem', marginBottom: '4px' }}>Stores</h2>
+          <h2 style={{ fontSize: '2rem', marginBottom: '4px' }}>K8s Store Orchestration</h2>
           <p style={{ color: 'var(--text-muted)' }}>Manage and monitor your stores.</p>
         </div>
         
