@@ -73,6 +73,7 @@ uvicorn main:app --reload
 ```bash
 cd frontend
 npm install
+cp .env.example .env   # Set VITE_API_URL=http://localhost:8000
 npm run dev
 ```
 
@@ -83,8 +84,9 @@ Open `http://localhost:5173` to access the dashboard.
 The same code runs in production — only the Helm values change.
 
 1. Set `ENV=production` and `BASE_DOMAIN=<your-ip>.nip.io` in `backend/.env`
-2. The backend auto-selects `values-prod.yaml` instead of `values-local.yaml`
-3. Apply RBAC: `kubectl apply -f infra/k8s/templates/provisioner_rbac.yaml`
+2. Set the frontend API URL: `echo "VITE_API_URL=http://<your-ip>:8000" > frontend/.env`
+3. The backend auto-selects `values-prod.yaml` instead of `values-local.yaml`
+4. Apply RBAC: `kubectl apply -f infra/k8s/templates/provisioner_rbac.yaml`
 
 ### What changes via Helm values (Local → Prod)
 
