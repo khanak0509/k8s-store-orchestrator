@@ -1,5 +1,5 @@
 apiVersion: v2
-name: urumi-woocommerce
+name: k8s-woocommerce
 description: Production-ready WooCommerce wrapper chart for Stores
 type: application
 version: 0.1.0
