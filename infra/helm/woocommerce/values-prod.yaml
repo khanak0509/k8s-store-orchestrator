@@ -37,6 +37,7 @@ autoscaling:
   minReplicas: 1
   maxReplicas: 5
   targetCPU: 80
+  targetMemory: 80
 
 # Automation & Self-Healing
 startupProbe:

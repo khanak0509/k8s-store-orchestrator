@@ -28,13 +28,21 @@ mariadb:
         memory: "512Mi"
         cpu: "200m"
 
+# Autoscaling (HPA) - Scales replicas based on load
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 5
+  targetCPU: 80
+  targetMemory: 80
+
 # Automation & Self-Healing
 startupProbe:
   enabled: true
   initialDelaySeconds: 30
   periodSeconds: 10
   timeoutSeconds: 5
-  failureThreshold: 30 # Allow 5 minutes for first boot
+  failureThreshold: 30 
 
 livenessProbe:
   enabled: true
