@@ -31,6 +31,13 @@ resources:
     cpu: 300m
     memory: 512Mi
 
+# Autoscaling (HPA) - Scales replicas based on load
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 5
+  targetCPU: 80
+
 # Automation & Self-Healing
 startupProbe:
   enabled: true
