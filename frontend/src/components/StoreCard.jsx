@@ -45,7 +45,8 @@ const StoreCard = ({ store, onDelete }) => {
 
   const formatDate = (dateString) => {
     if (!dateString) return 'Just now';
-    return new Date(dateString).toLocaleString('en-US', {
+    const date = new Date(dateString.endsWith('Z') ? dateString : `${dateString}Z`);
+    return date.toLocaleString('en-US', {
       month: 'short',
       day: 'numeric',
       hour: '2-digit',

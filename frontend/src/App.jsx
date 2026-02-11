@@ -30,11 +30,11 @@ function App() {
   return (
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg-app)' }}>
       <Navbar />
-      <main style={{ padding: '40px 0' }}>
-        <div className="container">
-          <StoreDashboard />
-        </div>
-      </main>
+      <div style={{ padding: '2rem 4rem' }}>
+        <h1 style={{ marginBottom: '2rem', fontSize: '2.5rem', fontWeight: 'bold' }}>Round 1</h1>
+        <InfrastructureMonitor />
+        <StoreDashboard />
+      </div>
     </div>
   );
 }
