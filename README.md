@@ -1,52 +1,74 @@
-# Urumi Store Orchestrator - Round 1 Submission
+# Urumi — Kubernetes Store Orchestrator
 
-A robust, Kubernetes-native platform for provisioning and managing isolated e-commerce stores (WooCommerce/MedusaJS).
+A platform that provisions fully functional, isolated WooCommerce stores on Kubernetes with one click.
 
-## Table of Contents
+## Architecture
 
-- [Architecture Overview](#architecture-overview)
-- [Local Setup (Kind/k3d/Minikube)](#local-setup)
-- [Production Setup (k3s/VPS)](#production-setup)
-- [Usage Guide](#usage-guide)
-- [System Design & Tradeoffs](./docs/SYSTEM_DESIGN.md)
+```
+User → React Dashboard → FastAPI Backend → Helm + kubectl → Isolated K8s Namespace
+```
 
-## Architecture Overview
+- **Frontend**: React (Vite) + Framer Motion
+- **Backend**: FastAPI + SQLAlchemy (SQLite)
+- **Orchestration**: Helm charts + kubectl via subprocess
+- **Infra**: Namespace-per-store with ResourceQuota, NetworkPolicy, LimitRange
 
-The system follows a modern microservices architecture:
+## Project Structure
 
-- **Frontend**: React (Vite) + Framer Motion + Lucide Icons.
-- **Backend**: FastAPI (Python) + SQLAlchemy (SQLite).
-- **Orchestration**: Asynchronous background tasks using `helm` and `kubectl` CLI wrappers.
-- **Infrastructure**: Namespace-per-store isolation with Resource Quotas and Network Policies.
+```
+├── backend/              # FastAPI orchestrator
+│   ├── main.py           # API endpoints + background tasks
+│   ├── k8s_service.py    # Helm/kubectl wrapper functions
+│   ├── models.py         # SQLAlchemy store model
+│   ├── schemas.py        # Pydantic validation (K8s-safe names)
+│   └── database.py       # DB session management
+├── frontend/             # React dashboard
+│   └── src/components/
+│       ├── StoreDashboard.jsx      # Store list + polling
+│       ├── StoreCard.jsx           # Store card with live quota view
+│       ├── CreateStoreModal.jsx    # Store creation form
+│       └── InfrastructureMonitor.jsx # Live cluster health
+├── infra/
+│   ├── helm/woocommerce/
+│   │   ├── Chart.yaml              # Bitnami WordPress dependency
+│   │   ├── values-local.yaml       # Local dev config (1Gi, low CPU)
+│   │   └── values-prod.yaml        # Production config (10Gi, TLS)
+│   └── k8s/templates/
+│       ├── resource_quota.yaml     # CPU/Memory/Pod caps per store
+│       ├── network_policy.yaml     # Deny-by-default isolation
+│       ├── limit_range.yaml        # Default container limits
+│       └── provisioner_rbac.yaml   # Least-privilege ServiceAccount
+└── docs/
+    └── SYSTEM_DESIGN.md            # Architecture & tradeoffs
+```
 
 ## Local Setup
 
 ### Prerequisites
 
 - Docker
-- k3d (recommended) or Minikube/Kind
+- k3d / Minikube / Kind
 - kubectl & helm
 - Python 3.9+
 - Node.js 18+
 
-### 1. Start Cluster (k3d example)
+### 1. Start a Cluster
 
 ```bash
-k3d cluster create urumi-cluster --port "8080:80@loadbalancer"
+k3d cluster create urumi --port "8080:80@loadbalancer"
 ```
 
-### 2. Backend Setup
+### 2. Backend
 
 ```bash
 cd backend
-python -m venv venv
-source venv/bin/activate
+python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env # Ensure BASE_DOMAIN=127.0.0.1.nip.io
+cp .env.example .env   # Set BASE_DOMAIN=127.0.0.1.nip.io
 uvicorn main:app --reload
 ```
 
-### 3. Frontend Setup
+### 3. Frontend
 
 ```bash
 cd frontend
@@ -54,32 +76,41 @@ npm install
 npm run dev
 ```
 
-## Production Setup
+Open `http://localhost:5173` to access the dashboard.
 
-The project is designed to be "Portable-to-Prod" using Helm:
+## Production Setup (VPS / AWS)
 
-- **Environment**: Set `ENV=production` in `.env`.
-- **Values**: The system will automatically switch from `values-local.yaml` to `values-prod.yaml` in `infra/helm/`.
-- **Security (RBAC)**: Apply the least-privilege service account: `kubectl apply -f infra/k8s/templates/provisioner_rbac.yaml`.
-- **TLS (Optional)**: Production values include Cert-Manager annotations. To enable, ensure a `ClusterIssuer` named `letsencrypt-prod` exists on your VPS.
-- **Storage**: Scaled from 1Gi (local) to 10Gi (prod) via Helm values using the `local-path` provisioner on k3s.
-- **Domains**: Uses `nip.io` by default for zero-config DNS (e.g., `store1.IP.nip.io`).
+The same code runs in production — only the Helm values change.
 
-## Usage Guide
+1. Set `ENV=production` and `BASE_DOMAIN=<your-ip>.nip.io` in `backend/.env`
+2. The backend auto-selects `values-prod.yaml` instead of `values-local.yaml`
+3. Apply RBAC: `kubectl apply -f infra/k8s/templates/provisioner_rbac.yaml`
 
-1. Open the dashboard at `http://localhost:5173`.
-2. Click **Provision Store**.
-3. Choose **WooCommerce**.
-4. Wait for the status to change from `Provisioning` to `Ready` (the system waits for actual Pod health).
-5. Click **Access Admin** or the **Store URL**.
-6. **Credentials**: Use the generated password shown on the card (Username: `admin`).
+### What changes via Helm values (Local → Prod)
 
-### Placing an Order (End-to-End)
+| Setting    | Local   | Production               |
+| ---------- | ------- | ------------------------ |
+| Storage    | 1Gi     | 10Gi                     |
+| CPU limits | 500m    | 300m (optimized)         |
+| TLS        | None    | Cert-Manager annotations |
+| Ingress    | traefik | traefik                  |
 
-- **WooCommerce**:
-  1. Open the storefront.
-  2. Add any default item to the cart.
-  3. Proceed to Checkout.
-  4. Select "Cash on Delivery" or dummy gateway.
-  5. Place Order.
-  6. Log in to `/wp-admin` with the provided credentials to see your order!
+## How to Create a Store and Place an Order
+
+1. Open the dashboard at `http://localhost:5173`
+2. Click **Create Store** → name it → select WooCommerce → Deploy
+3. Wait for status to change from **Provisioning** → **Ready**
+4. Click the store URL to open the storefront
+5. Add a product to cart → Checkout → select **Cash on Delivery** → Place Order
+6. Open `/wp-admin` (credentials shown on the store card) → WooCommerce → Orders → verify the order
+
+## System Design & Tradeoffs
+
+See [docs/SYSTEM_DESIGN.md](./docs/SYSTEM_DESIGN.md) for details on:
+
+- Architecture choice & async provisioning
+- Isolation strategy (Namespace + Quota + NetworkPolicy + LimitRange)
+- Idempotency & failure handling
+- Security posture & RBAC
+- Horizontal scaling plan
+- Upgrade & rollback strategy
