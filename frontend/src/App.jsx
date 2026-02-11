@@ -15,7 +15,7 @@ const Navbar = () => (
     padding: '0 24px'
   }}>
     <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
-      <h1 style={{ fontSize: '1.25rem', margin: 0, fontWeight: 700, whiteSpace: 'nowrap' }}>urumi round 1</h1>
+      <h1 style={{ fontSize: '1.25rem', margin: 0, fontWeight: 700, whiteSpace: 'nowrap' }}>Urumi</h1>
     </div>
     
     <div style={{ flex: 2, display: 'flex', justifyContent: 'center' }}>

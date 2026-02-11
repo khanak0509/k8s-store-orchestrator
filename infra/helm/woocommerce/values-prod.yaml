@@ -57,50 +57,50 @@ lifecycleHooks:
         - -c
         - |
           # URUMI AUTO-PROVISIONING SCRIPT
-          echo "⏳ Hook Started: Waiting for WordPress Core..."
+          echo "Hook Started: Waiting for WordPress Core..."
 
           # Wait until WordPress is installed
           until wp core is-installed --allow-root; do 
-            echo "   ...waiting for WP..."
+            echo "...waiting for WP..."
             sleep 5
           done
 
-          echo "✅ WordPress is Live! Starting Configuration..."
+          echo "WordPress is Live! Starting Configuration..."
 
           # Get store URL from release name
           STORE_URL="http://{{ .Release.Name }}.${BASE_DOMAIN:-127.0.0.1.nip.io}"
-          echo "🌐 Setting URLs to $STORE_URL..."
+          echo "Setting URLs to $STORE_URL..."
           wp option update siteurl "$STORE_URL" --allow-root
           wp option update home "$STORE_URL" --allow-root
 
           # Clean up default content
-          echo "🧹 Removing default content..."
+          echo "Removing default content..."
           wp post delete 1 --force --allow-root 2>/dev/null || true
           wp post delete 2 --force --allow-root 2>/dev/null || true
 
           # Rename Site
-          echo "🏷️ Renaming Site..."
+          echo "Renaming Site..."
           wp option update blogname "Urumi Store" --allow-root
           wp option update blogdescription "Kubernetes-Orchestrated WooCommerce" --allow-root
 
           # Install & Activate WooCommerce
-          echo "📦 Installing WooCommerce..."
+          echo "Installing WooCommerce..."
           wp plugin install woocommerce --activate --force --allow-root
 
           # Install & Activate Astra Theme
-          echo "🎨 Installing Astra Theme..."
+          echo "Installing Astra Theme..."
           wp theme install astra --activate --allow-root
 
           # Setup Store Pages
-          echo "📄 Creating Store Pages..."
+          echo "Creating Store Pages..."
           wp wc tool run install_pages --user=admin --allow-root
 
           # Enable COD (Cash on Delivery) for Demo
-          echo "💰 Enabling Cash on Delivery..."
+          echo "Enabling Cash on Delivery..."
           wp wc payment_gateway update cod --enabled=true --user=admin --allow-root
 
           # Set Homepage to Shop
-          echo "🏠 Setting Homepage..."
+          echo "Setting Homepage..."
           shop_page_id=$(wp post list --name=shop --field=ID --post_type=page --allow-root 2>/dev/null || echo "")
           if [ -n "$shop_page_id" ]; then
             wp option update show_on_front 'page' --allow-root
@@ -108,7 +108,7 @@ lifecycleHooks:
           fi
 
           # Create Product Categories
-          echo "📂 Creating Categories..." >> /tmp/provision.log
+          echo "Creating Categories..." >> /tmp/provision.log
           CLOTHING_CAT_ID=$(wp wc product_category create --name="Clothing" --user=admin --porcelain --allow-root 2>/dev/null || echo "")
           echo "Category ID: $CLOTHING_CAT_ID" >> /tmp/provision.log
 
@@ -125,7 +125,7 @@ lifecycleHooks:
             PID=$(wp wc product create --name="$name" --type=simple --regular_price="$price" --user=admin --porcelain --allow-root 2>>/tmp/provision.log)
             
             if [ -n "$PID" ]; then
-              echo "✅ Created $name (ID: $PID)" >> /tmp/provision.log
+              echo "Created $name (ID: $PID)" >> /tmp/provision.log
               
               # 2. Assign Category
               if [ -n "$cat_id" ]; then
@@ -137,13 +137,13 @@ lifecycleHooks:
                  wp wc product update $PID --images="[{\"src\": \"$image\"}]" --user=admin --allow-root >> /tmp/provision.log 2>&1
               fi
             else
-              echo "❌ Failed to create $name" >> /tmp/provision.log
+              echo "Failed to create $name" >> /tmp/provision.log
             fi
           }
 
           # Run Creation
-          create_product "Urumi Beanie" "15" "https://images.unsplash.com/photo-1576871337622-98d48d1cf531?w=800" "$CLOTHING_CAT_ID"
-          create_product "Urumi Hoodie" "45" "https://images.unsplash.com/photo-1556906781-9a412961c28c?w=800" "$CLOTHING_CAT_ID"
-          create_product "Urumi Mug"    "12" "https://images.unsplash.com/photo-1514228742587-6b1558fcca3d?w=800" ""
+          create_product "Beanie" "15" "https://images.unsplash.com/photo-1576871337622-98d48d1cf531?w=800" "$CLOTHING_CAT_ID"
+          create_product "Hoodie" "45" "https://images.unsplash.com/photo-1556906781-9a412961c28c?w=800" "$CLOTHING_CAT_ID"
+          create_product "Mug"    "12" "https://images.unsplash.com/photo-1514228742587-6b1558fcca3d?w=800" ""
 
-          echo "🚀 PROVISIONING COMPLETE!" >> /tmp/provision.log
+          echo "PROVISIONING COMPLETE!" >> /tmp/provision.log

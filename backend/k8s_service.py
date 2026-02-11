@@ -162,10 +162,8 @@ def k8s_deploy_store(name: str, engine_type: str, namespace: str, password: str 
                 "--set", f"ingress.hostname={hostname}",
             ]
             
-            # Apply Guardrails before Helm Install (Pre-provisioning security)
-            k8s_apply_resource_quota(namespace)
-            k8s_apply_network_policy(namespace)
-            k8s_apply_limit_range(namespace)
+            
+
             
         elif engine_type == "medusa":
             hostname = f"{name}.medusa.{base_domain}"
