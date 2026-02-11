@@ -55,7 +55,7 @@ User → React Dashboard → FastAPI Backend → Helm + kubectl → Isolated K8s
 ### 1. Start a Cluster
 
 ```bash
-k3d cluster create urumi --port "8080:80@loadbalancer"
+k3d cluster create k8s-store --port "8080:80@loadbalancer"
 ```
 
 ### 2. Backend
