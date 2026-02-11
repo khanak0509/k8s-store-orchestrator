@@ -79,14 +79,24 @@ npm run dev
 
 Open `http://localhost:5173` to access the dashboard.
 
-## Production Setup (VPS / AWS)
+### Production Setup (VPS / AWS)
 
 The same code runs in production — only the Helm values change.
 
-1. Set `ENV=production` and `BASE_DOMAIN=<your-ip>.nip.io` in `backend/.env`
-2. Set the frontend API URL: `echo "VITE_API_URL=http://<your-ip>:8000" > frontend/.env`
-3. The backend auto-selects `values-prod.yaml` instead of `values-local.yaml`
-4. Apply RBAC: `kubectl apply -f infra/k8s/templates/provisioner_rbac.yaml`
+1. **Fix Kubeconfig Permissions** (Crucial on AWS/k3s):
+
+   ```bash
+   mkdir -p ~/.kube
+   sudo cp /etc/rancher/k3s/k3s.yaml ~/.kube/config
+   sudo chown $(whoami) ~/.kube/config
+   chmod 600 ~/.kube/config
+   export KUBECONFIG=~/.kube/config
+   ```
+
+2. Set `ENV=production` and `BASE_DOMAIN=<your-ip>.nip.io` in `backend/.env`
+3. Set the frontend API URL: `echo "VITE_API_URL=http://<your-ip>:8000" > frontend/.env`
+4. The backend auto-selects `values-prod.yaml` instead of `values-local.yaml`
+5. Apply RBAC: `kubectl apply -f infra/k8s/templates/provisioner_rbac.yaml`
 
 ### What changes via Helm values (Local → Prod)
 
@@ -180,11 +190,11 @@ The API is stateless so scaling it horizontally is straightforward. The main bot
 
 ### What's different in production
 
-|                | Local                 | Production                                        |
-| -------------- | --------------------- | ------------------------------------------------- |
+|                | Local               | Production                                    |
+| -------------- | ------------------- | --------------------------------------------- |
 | Helm values    | `values-local.yaml` | `values-prod.yaml` (auto-picked by `ENV` var) |
-| Storage        | 1Gi                   | 10Gi                                              |
-| DNS            | `127.0.0.1.nip.io`  | `<public-ip>.nip.io`                            |
-| TLS            | off                   | Cert-Manager + Let's Encrypt                      |
-| Secrets        | `.env` file         | generated at runtime, stored in k8s secrets       |
-| Access control | personal kubeconfig   | dedicated RBAC service account                    |
+| Storage        | 1Gi                 | 10Gi                                          |
+| DNS            | `127.0.0.1.nip.io`  | `<public-ip>.nip.io`                          |
+| TLS            | off                 | Cert-Manager + Let's Encrypt                  |
+| Secrets        | `.env` file         | generated at runtime, stored in k8s secrets   |
+| Access control | personal kubeconfig | dedicated RBAC service account                |
