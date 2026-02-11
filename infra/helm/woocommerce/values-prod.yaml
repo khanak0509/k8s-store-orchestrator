@@ -64,7 +64,7 @@ lifecycleHooks:
         - /bin/bash
         - -c
         - |
-          # URUMI AUTO-PROVISIONING SCRIPT
+          #AUTO-PROVISIONING SCRIPT
           echo "Hook Started: Waiting for WordPress Core..."
 
           # Wait until WordPress is installed
@@ -88,7 +88,7 @@ lifecycleHooks:
 
           # Rename Site
           echo "Renaming Site..."
-          wp option update blogname "Urumi Store" --allow-root
+          wp option update blogname "WooCommerce Store" --allow-root
           wp option update blogdescription "Kubernetes-Orchestrated WooCommerce" --allow-root
 
           # Install & Activate WooCommerce
