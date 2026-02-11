@@ -1,4 +1,4 @@
-# Urumi — Kubernetes Store Orchestrator
+# Kubernetes Store Orchestrator
 
 A platform that provisions fully functional, isolated WooCommerce stores on Kubernetes with one click.
 
@@ -108,11 +108,83 @@ The same code runs in production — only the Helm values change.
 
 ## System Design & Tradeoffs
 
-See [docs/SYSTEM_DESIGN.md](./docs/SYSTEM_DESIGN.md) for details on:
+### Why I built it this way
 
-- Architecture choice & async provisioning
-- Isolation strategy (Namespace + Quota + NetworkPolicy + LimitRange)
-- Idempotency & failure handling
-- Security posture & RBAC
-- Horizontal scaling plan
-- Upgrade & rollback strategy
+Provisioning a store takes 30-60 seconds (WordPress + MariaDB + WooCommerce install). I can't make the user stare at a loading screen that long, so the API returns right away with `status: Provisioning` and the actual work runs in a background task. The frontend polls every few seconds to check if it's ready yet.
+
+I went with FastAPI's `BackgroundTasks` instead of something like Celery because given the time constraint, setting up a Redis queue felt like overkill. The tradeoff is that if the backend process dies, in-flight provisions are lost — but for a complete production setup we can easily switch to Celery later.
+
+### How stores stay isolated
+
+Every store goes into its own Kubernetes namespace. On top of that, each namespace gets:
+
+- A **ResourceQuota** so one store can't eat all the cluster's CPU and RAM
+- A **NetworkPolicy** set to deny-all, so stores can't talk to each other
+- A **LimitRange** that puts default limits on any container, so nothing runs without bounds
+
+Each store also has its own MariaDB with its own PVC — zero data sharing between stores.
+
+### Handling failures
+
+I use `helm upgrade --install` instead of plain `helm install`. If something crashes mid-provision and I retry, Helm picks up where it left off instead of failing with "already exists."
+
+The readiness watcher checks for known bad states (ImagePullBackOff, quota exceeded) so it can fail fast instead of waiting the full 5-minute timeout.
+
+For cleanup, I just delete the entire namespace. Kubernetes garbage-collects all the pods, services, secrets, and storage inside it automatically.
+
+### Provisioning flow
+
+```
+POST /stores
+  → Create DB record (status: Provisioning)
+  → BackgroundTask:
+      1. kubectl create namespace store-<name>
+      2. kubectl apply ResourceQuota, NetworkPolicy, LimitRange
+      3. helm upgrade --install <name> bitnami/wordpress -f values-<env>.yaml
+      4. postStart hook inside the pod installs WooCommerce + products
+      5. Backend polls k8s API until all containers are Ready (5-min timeout)
+      6. Update DB → status: Ready, url: http://<name>.<domain>
+```
+
+### Abuse prevention
+
+- ResourceQuota per namespace — hard caps prevent one store from eating all cluster resources
+- Store names are validated on both frontend and backend (lowercase, alphanumeric, hyphens only)
+- Database enforces unique store names, so duplicates are rejected
+- 5-minute provisioning timeout prevents tasks from hanging forever
+- `created_at` and `updated_at` timestamps on every store record for auditing
+
+### Security
+
+- Passwords are generated using Python's `secrets` module (cryptographically secure) and passed to Helm via `--set` flags. They're never stored in source code.
+- I wrote an RBAC manifest (`provisioner_rbac.yaml`) that defines a least-privilege service account. In dev I use my kubeconfig, but in production I'd bind the backend to this service account so it can only do what it needs — create namespaces, deployments, services, and quotas. Not cluster-admin.
+- Only WordPress is exposed via Ingress. MariaDB runs as ClusterIP — inaccessible from outside.
+- Bitnami images run as non-root (UID 1001) by default, which reduces the risk of container breakouts.
+
+### Scaling plan
+
+| Component    | Current                      | Production                    |
+| ------------ | ---------------------------- | ----------------------------- |
+| Dashboard    | Vite dev server              | Static build behind CDN/Nginx |
+| API          | Single uvicorn process       | K8s Deployment with HPA       |
+| Provisioning | BackgroundTasks (in-process) | Celery + Redis worker pool    |
+| Database     | SQLite                       | PostgreSQL (RDS) + PgBouncer  |
+
+The API is stateless so scaling it horizontally is straightforward. The main bottleneck right now is SQLite — for production I'd swap it for PostgreSQL for concurrent write safety.
+
+### Upgrades & rollbacks
+
+- To upgrade a store: update the chart version or image tag, run `helm upgrade <name>`
+- To rollback: `helm rollback <name> 1` — instant revert to last working state, PVCs are preserved
+- For the platform itself: just update backend code and restart uvicorn. Stores run independently in their own namespaces, so there's no downtime.
+
+### What's different in production
+
+|                | Local                 | Production                                        |
+| -------------- | --------------------- | ------------------------------------------------- |
+| Helm values    | `values-local.yaml` | `values-prod.yaml` (auto-picked by `ENV` var) |
+| Storage        | 1Gi                   | 10Gi                                              |
+| DNS            | `127.0.0.1.nip.io`  | `<public-ip>.nip.io`                            |
+| TLS            | off                   | Cert-Manager + Let's Encrypt                      |
+| Secrets        | `.env` file         | generated at runtime, stored in k8s secrets       |
+| Access control | personal kubeconfig   | dedicated RBAC service account                    |
