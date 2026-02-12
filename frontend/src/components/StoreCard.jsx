@@ -42,8 +42,13 @@ const StoreCard = ({ store, onDelete }) => {
   }, [showQuota, store.status]);
 
   React.useEffect(() => {
-    if (showEvents) fetchEvents();
-  }, [showEvents]);
+    if (showEvents) {
+      fetchEvents();
+      // Poll for events every 3s if the logs are being viewed
+      const interval = setInterval(fetchEvents, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [showEvents, store.status]);
 
   const getStatusBadge = (status) => {
     switch (status) {

@@ -114,9 +114,12 @@ def delete_store_task(store_id: int, name: str, namespace: str):
             
             store = db.query(Store).filter(Store.id == store_id).first()
             if store:
+                # Clean up associated audit logs to prevent old logs appearing if ID is reused
+                db.query(models.AuditLog).filter(models.AuditLog.store_id == store_id).delete()
+                
                 db.delete(store)
                 db.commit()
-                logger.info(f"[{name}] Database record deleted.")
+                logger.info(f"[{name}] Database record and audit logs deleted.")
                 
         except Exception as e:
             logger.error(f"Error in delete task for {name}: {e}")
