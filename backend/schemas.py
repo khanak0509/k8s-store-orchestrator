@@ -1,5 +1,5 @@
 from pydantic import BaseModel, field_validator, ConfigDict
-from typing import Optional, Literal
+from typing import Optional, Literal, List
 from datetime import datetime
 import re
 
@@ -32,4 +32,13 @@ class StoreResponse(StoreBase):
     password: Optional[str] = None
     created_at: datetime
     error_message: Optional[str] = None
+    model_config = ConfigDict(from_attributes=True)
+
+class AuditLogResponse(BaseModel):
+    id: int
+    store_id: int
+    event_type: str
+    message: str
+    timestamp: datetime
+
     model_config = ConfigDict(from_attributes=True)

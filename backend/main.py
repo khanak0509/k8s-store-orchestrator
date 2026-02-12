@@ -1,6 +1,7 @@
 from dotenv import load_dotenv
 import logging
 import os
+from typing import List
 from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
@@ -8,8 +9,11 @@ from sqlalchemy.orm import Session
 load_dotenv()
 
 from database import Base, engine, get_db, SessionLocal
+import models
+import schemas
 from models import Store, StoreStatus, StoreEngine
-from schemas import StoreCreate, StoreResponse
+from schemas import StoreCreate, StoreResponse, AuditLogResponse
+
 import k8s_service
 
 logging.basicConfig(level=logging.INFO)
@@ -37,6 +41,15 @@ def generate_password(length=8):
     alphabet = string.ascii_letters + string.digits
     return ''.join(secrets.choice(alphabet) for _ in range(length))
 
+# HELPER: Persistent Audit Trail
+def log_event(db: Session, store_id: int, event_type: str, message: str):
+    log = models.AuditLog(
+        store_id=store_id,
+        event_type=event_type,
+        message=message
+    )
+    db.add(log)
+    db.commit()
 
 def provision_store_task(store_id: int, name: str, engine_type: str, namespace: str, password: str):
     with SessionLocal() as db:
@@ -46,40 +59,50 @@ def provision_store_task(store_id: int, name: str, engine_type: str, namespace: 
 
         try:
             logger.info(f"[{name}] Starting provisioning in namespace {namespace}...")
+            log_event(db, store_id, "INFO", f"Namespace creation started: {namespace}")
             
             if not k8s_service.k8s_create_namespace(namespace):
                 raise Exception("Failed to create Kubernetes namespace")
+            
+            log_event(db, store_id, "SUCCESS", "Kubernetes namespace created successfully.")
 
             # Apply Quotas, Network Policy & Limit Range
+            log_event(db, store_id, "INFO", "Applying ResourceQuota, NetworkPolicy, and LimitRange...")
             k8s_service.k8s_apply_resource_quota(namespace)
             k8s_service.k8s_apply_network_policy(namespace)
             k8s_service.k8s_apply_limit_range(namespace)
+            log_event(db, store_id, "SUCCESS", "Security policies and resource limits applied.")
 
             # Helm to install the store
+            log_event(db, store_id, "INFO", f"Deploying {engine_type} via Helm chart...")
             success, info = k8s_service.k8s_deploy_store(name, engine_type, namespace, password)
             
             if success:
+                log_event(db, store_id, "SUCCESS", "Helm deployment initiated. Waiting for pods to stabilize.")
                 # Poll until pods are actually ready
                 logger.info(f"[{name}] Deployment initiated. Waiting for pods to be Ready...")
                 is_ready, reason = k8s_service.k8s_wait_for_ready(namespace)
                 if is_ready:
-                    
                     store.status = StoreStatus.READY
                     store.url = info
+                    log_event(db, store_id, "SUCCESS", f"Store is Ready! Reachable at {info}")
                     logger.info(f"[{name}] Provisioning Complete: {info}")
                 else:
                     store.status = StoreStatus.FAILED
                     store.error_message = reason
+                    log_event(db, store_id, "FAILURE", f"Provisioning timed out or pods failed: {reason}")
                     logger.error(f"[{name}] Provisioning failed: {reason}")
             else:
                 store.status = StoreStatus.FAILED
                 store.error_message = info
+                log_event(db, store_id, "FAILURE", f"Helm deployment failed: {info}")
                 logger.error(f"[{name}] Provisioning Failed: {info}")
                 
         except Exception as e:
             logger.exception(f"[{name}] Critical Error")
             store.status = StoreStatus.FAILED
             store.error_message = str(e)
+            log_event(db, store_id, "FAILURE", f"Critical exception during provisioning: {str(e)}")
         finally:
             db.commit()
 
@@ -126,6 +149,8 @@ def create_store(
     db.commit()
     db.refresh(new_store)
 
+    log_event(db, new_store.id, "INFO", f"Store '{new_store.name}' record created. Provisioning started.")
+
     background_tasks.add_task(
         provision_store_task, 
         new_store.id, 
@@ -137,9 +162,14 @@ def create_store(
 
     return new_store
 
-@app.get("/stores", response_model=list[StoreResponse])
+@app.get("/stores", response_model=List[StoreResponse])
 def list_stores(db: Session = Depends(get_db)):
     return db.query(Store).all()
+
+@app.get("/stores/{store_id}/events", response_model=List[AuditLogResponse])
+def get_store_events(store_id: int, db: Session = Depends(get_db)):
+    events = db.query(models.AuditLog).filter(models.AuditLog.store_id == store_id).order_by(models.AuditLog.timestamp.desc()).all()
+    return events
 
 @app.get("/cluster/health")
 def get_cluster_health():
@@ -169,6 +199,8 @@ def delete_store(
 
     db_store.status = StoreStatus.DELETING
     db.commit()
+    
+    log_event(db, store_id, "INFO", "Deletion initiated. Cleaning up Kubernetes resources.")
 
     background_tasks.add_task(
         delete_store_task, 

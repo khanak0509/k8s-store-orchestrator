@@ -5,6 +5,9 @@ const StoreCard = ({ store, onDelete }) => {
   const [copied, setCopied] = useState(false);
   const [quota, setQuota] = useState(null);
   const [showQuota, setShowQuota] = useState(false);
+  const [events, setEvents] = useState([]);
+  const [showEvents, setShowEvents] = useState(false);
+  const [loadingEvents, setLoadingEvents] = useState(false);
 
   const fetchQuota = async () => {
     if (store.status !== 'Ready') return;
@@ -19,9 +22,28 @@ const StoreCard = ({ store, onDelete }) => {
     }
   };
 
+  const fetchEvents = async () => {
+    setLoadingEvents(true);
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/stores/${store.id}/events`);
+      if (response.ok) {
+        const data = await response.json();
+        setEvents(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch events:', err);
+    } finally {
+      setLoadingEvents(false);
+    }
+  };
+
   React.useEffect(() => {
       if (showQuota) fetchQuota();
   }, [showQuota, store.status]);
+
+  React.useEffect(() => {
+    if (showEvents) fetchEvents();
+  }, [showEvents]);
 
   const getStatusBadge = (status) => {
     switch (status) {
@@ -253,6 +275,59 @@ const StoreCard = ({ store, onDelete }) => {
                 )}
             </div>
         )}
+
+        {/* Activity Logs (Stand Out FEATURE) */}
+        <div style={{ marginTop: '8px' }}>
+            <button 
+                onClick={() => setShowEvents(!showEvents)}
+                style={{ 
+                    background: 'none', 
+                    border: 'none', 
+                    color: 'var(--primary)', 
+                    fontSize: '0.75rem', 
+                    fontWeight: 600, 
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: 0,
+                    marginBottom: showEvents ? '12px' : 0
+                }}
+            >
+                <Clock size={12} /> {showEvents ? 'Hide' : 'View'} Lifecycle Logs
+            </button>
+
+            {showEvents && (
+                <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-subtle)', maxHeight: '200px', overflowY: 'auto' }}>
+                    {loadingEvents && events.length === 0 ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <RefreshCcw size={12} className="spin" />
+                            <span style={{ fontSize: '0.75rem' }}>Fetching logs...</span>
+                        </div>
+                    ) : events.length === 0 ? (
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>No logs yet.</span>
+                    ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            {events.map((ev) => (
+                                <div key={ev.id} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                                    <div style={{ 
+                                        width: '6px', 
+                                        height: '6px', 
+                                        borderRadius: '50%', 
+                                        marginTop: '5px',
+                                        background: ev.event_type === 'FAILURE' ? 'var(--danger)' : ev.event_type === 'SUCCESS' ? 'var(--success)' : 'var(--primary)'
+                                    }} />
+                                    <div style={{ flex: 1 }}>
+                                        <p style={{ fontSize: '0.75rem', margin: 0, lineHeight: 1.4, color: 'var(--text-main)' }}>{ev.message}</p>
+                                        <p style={{ fontSize: '0.65rem', margin: 0, color: 'var(--text-muted)' }}>{formatDate(ev.timestamp)}</p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+        </div>
       </div>
 
       <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', gap: '8px' }}>
