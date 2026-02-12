@@ -121,8 +121,7 @@ lifecycleHooks:
           create_product() {
             local name="$1"
             local price="$2"
-            local image="$3"
-            local cat_id="$4"
+            local cat_id="$3"
             
             echo "Creating $name..." >> /tmp/provision.log
             
@@ -136,19 +135,14 @@ lifecycleHooks:
               if [ -n "$cat_id" ]; then
                  wp wc product update $PID --categories="[{\"id\": $cat_id}]" --user=admin --allow-root >> /tmp/provision.log 2>&1
               fi
-
-              # 3. Assign Image
-              if [ -n "$image" ]; then
-                 wp wc product update $PID --images="[{\"src\": \"$image\"}]" --user=admin --allow-root >> /tmp/provision.log 2>&1
-              fi
             else
               echo "Failed to create $name" >> /tmp/provision.log
             fi
           }
 
           # Run Creation
-          create_product "Beanie" "15" "https://images.unsplash.com/photo-1576871337622-98d48d1cf531?w=800" "$CLOTHING_CAT_ID"
-          create_product "Hoodie" "45" "https://images.unsplash.com/photo-1556906781-9a412961c28c?w=800" "$CLOTHING_CAT_ID"
-          create_product "Mug"    "12" "https://images.unsplash.com/photo-1514228742587-6b1558fcca3d?w=800" ""
+          create_product "Beanie" "15" "$CLOTHING_CAT_ID"
+          create_product "Hoodie" "45" "$CLOTHING_CAT_ID"
+          create_product "Mug"    "12" ""
 
           echo "PROVISIONING COMPLETE!" >> /tmp/provision.log
