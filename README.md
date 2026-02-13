@@ -2,8 +2,6 @@
 
 A platform that provisions fully functional, isolated WooCommerce stores on Kubernetes with one click. Each store gets its own namespace, database, persistent storage, and network isolation.
 
-> **📹 Demo Video:** [Watch the full walkthrough here](#)
->
 > **✅ Live Deployment:** **Deployed on **AWS EC2 (m7i-flex.large)** with k3s**
 
 ## System Architecture & Lifecycle
@@ -158,7 +156,6 @@ The same code runs in production — only the Helm values change. **Deployed and
    chmod 600 ~/.kube/config
    export KUBECONFIG=~/.kube/config
    ```
-
 2. Set `ENV=production` and `BASE_DOMAIN=<your-ip>.nip.io` in `backend/.env`
 3. Set the frontend API URL: `echo "VITE_API_URL=http://<your-ip>:8000" > frontend/.env`
 4. The backend auto-selects `values-prod.yaml` instead of `values-local.yaml`
@@ -257,13 +254,13 @@ Security is implemented at every layer of the stack:
 
 The platform is designed to be horizontally scalable at every layer.
 
-| Component     | Architecture        | Auto-Scaling Strategy                                                                                             |
-| :------------ | :------------------ | :---------------------------------------------------------------------------------------------------------------- |
-| **Dashboard** | React (Vite)        | Served via Nginx/CDN. Served via replication (Deployment).                                                        |
-| **Stores**    | WordPress / PHP-FPM | **Already Implemented**: Uses HPA to scale from 1 to 5 replicas based on CPU/Memory load.                         |
-| **API**       | FastAPI (uvicorn)   | Stateless. Can be fronted by a LoadBalancer with a Kubernetes HPA (e.g., scale at 70% CPU).                       |
-| **Worker**    | BackgroundTasks     | In production, this would migrate to**Celery + Redis** to allow workers to scale independently of the API server. |
-| **Database**  | SQLite → PostgreSQL | For high concurrency, SQLite would migrate to a managed RDS or high-availability Postgres cluster with PgBouncer. |
+| Component           | Architecture         | Auto-Scaling Strategy                                                                                                   |
+| :------------------ | :------------------- | :---------------------------------------------------------------------------------------------------------------------- |
+| **Dashboard** | React (Vite)         | Served via Nginx/CDN. Served via replication (Deployment).                                                              |
+| **Stores**    | WordPress / PHP-FPM  | **Already Implemented**: Uses HPA to scale from 1 to 5 replicas based on CPU/Memory load.                         |
+| **API**       | FastAPI (uvicorn)    | Stateless. Can be fronted by a LoadBalancer with a Kubernetes HPA (e.g., scale at 70% CPU).                             |
+| **Worker**    | BackgroundTasks      | In production, this would migrate to**Celery + Redis** to allow workers to scale independently of the API server. |
+| **Database**  | SQLite → PostgreSQL | For high concurrency, SQLite would migrate to a managed RDS or high-availability Postgres cluster with PgBouncer.       |
 
 The API is stateless so scaling it horizontally is straightforward. The main barrier right now is SQLite — for production I'd swap it for PostgreSQL for concurrent write safety.
 
@@ -296,13 +293,11 @@ we can verify the "Hardening" features manually with these commands:
    kubectl auth can-i create namespaces --as=system:serviceaccount:default:store-orchestrator
    # Expected Output: yes
    ```
-
 2. **Verify Resource Quotas** (Check if the 2-Core/3Gi limit is applied to a store):
 
    ```bash
    kubectl get resourcequota -n store-<name>
    ```
-
 3. **Verify Network Isolation** (if Deny-All policy exists):
 
    ```bash
