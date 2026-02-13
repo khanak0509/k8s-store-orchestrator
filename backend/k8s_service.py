@@ -138,7 +138,7 @@ def k8s_wait_for_ready(namespace: str, timeout: int = 300) -> tuple[bool, str]:
     return False, last_error
 
 def k8s_deploy_store(name: str, engine_type: str, namespace: str, password: str = None):
-    demo_password = password or os.getenv("DEMO_STORE_PASSWORD", "StoreSecureRound1!")
+    demo_password = password or os.getenv("DEMO_STORE_PASSWORD")
     base_domain = os.getenv("BASE_DOMAIN", "127.0.0.1.nip.io")
     is_prod = os.getenv("ENV") == "production"
     

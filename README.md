@@ -312,9 +312,9 @@ we can verify the "Hardening" features manually with these commands:
 
 ### Future Enhancements (Production Roadmap)
 
-- **Provisioning** — Migrate from FastAPI's in-process BackgroundTasks to a Celery + Redis worker pool. This would allow provisioning to survive backend restarts, support better concurrency control, and enable retry logic with exponential backoff.
 - **Automation** — Add an agentic workflow using LangGraph for natural language store provisioning with Human-in-the-Loop (HITL) approval. Users would simply type _"Create a clothing store called urban-threads"_ and the AI agent would handle the entire orchestration flow, asking for confirmation before deploying.
   (my past LangGraph-based projects: [GenieBot](https://github.com/khanak0509/GenieBot), [autopilot-forms](https://github.com/khanak0509/autopilot-forms), [DocVeil](https://github.com/khanak0509/DocVeil), [CookVision](https://github.com/khanak0509/CookVision), [safe-shell](https://github.com/khanak0509/safe-shell) )
+- **Provisioning** — Migrate from FastAPI's in-process BackgroundTasks to a Celery + Redis worker pool. This would allow provisioning to survive backend restarts, support better concurrency control, and enable retry logic with exponential backoff.
 - **Database** — Replace SQLite with PostgreSQL + PgBouncer. SQLite doesn't support concurrent writes safely, which becomes a bottleneck when multiple stores are being provisioned simultaneously. PostgreSQL also enables proper migrations, replication, and point-in-time recovery.
 - **Frontend** — Build the React app as a static production bundle and serve it via Nginx or a CDN. This eliminates the Vite dev server dependency and enables sub-100ms page loads globally with proper caching headers.
 - **TLS** — Enable Cert-Manager + Let's Encrypt for automatic HTTPS certificate provisioning on all store URLs. The Helm values already include the annotations (`cert-manager.io/cluster-issuer`), so this is a configuration-only change.
